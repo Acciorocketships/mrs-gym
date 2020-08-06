@@ -29,7 +29,7 @@ class Object:
 			r = R.from_matrix(ori)
 			ori = torch.tensor(r.as_quat())
 		elif ori.shape == (3,):
-			r = R.from_euler('zyx', ori, degrees=True)
+			r = R.from_euler('zyx', ori, degrees=False)
 			ori = torch.tensor(r.as_quat())
 		ori = ori.tolist()
 		# vel
@@ -61,21 +61,21 @@ class Object:
 		return torch.tensor(p.getBaseVelocity(self.model)[0])
 
 
-	def get_angvel(self):
+	def get_angvel(self, mat=False):
 		return torch.tensor(p.getBaseVelocity(self.model)[1])
-
+		
 
 	def get_pos(self):
-		return torch.tensor(p.getBasePositionAndOrientation(self.model)[0])
+		return torch.tensor(p.getBasePositionAndOrientation(self.model)[0]).float()
 
 
 	def get_ori(self, mat=False):
 		quat = torch.tensor(p.getBasePositionAndOrientation(self.model)[1])
 		r = R.from_quat(quat)
 		if mat:
-			return torch.tensor(r.as_mat())
+			return torch.tensor(r.as_matrix()).float()
 		else:
-			return torch.tensor(r.as_euler('zyx', degrees=True))
+			return torch.tensor(r.as_euler('zyx', degrees=False).copy()).float()
 
 
 	def get_contact_points(self, other=None):

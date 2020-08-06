@@ -6,25 +6,20 @@ import os
 
 class BulletSim:
 
-	def __init__(self, **kwargs):
-		# Constants
-		self.GRAVITY = 9.81
-		self.DT = 0.01
-		self.REAL_TIME = False # Async
-		self.set_constants(kwargs)
-		# Setup
-		self.client = p.connect(p.GUI)
-		p.setGravity(0,0,-self.GRAVITY)
-		p.setTimeStep(self.DT)
-		p.setRealTimeSimulation(1 if self.REAL_TIME else 0)
+	# Constants
+	GRAVITY = 9.81
+	DT = 0.01
+	REAL_TIME = False # Async
 
+	@staticmethod
+	def setup():
+		client = p.connect(p.GUI)
+		p.setGravity(0,0,-BulletSim.GRAVITY)
+		p.setTimeStep(BulletSim.DT)
+		p.setRealTimeSimulation(1 if BulletSim.REAL_TIME else 0)
 
-	def set_constants(self, kwargs):
-		for name, val in kwargs.items():
-			if name in self.__dict__:
-				self.__dict__[name] = val
-
-	def step_sim(self):
+	@staticmethod
+	def step_sim():
 		p.stepSimulation()
 
 

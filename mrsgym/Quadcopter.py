@@ -35,7 +35,9 @@ class Quadcopter(Object):
 		self.set_forces(self.controller.control_to_force(controls))
 
 
-	# set_target_vel
+	def set_target_vel(self, vel=[0,0,0]):
+		controls = self.controller.pid_velocity(vel=self.get_vel(), ori=self.get_ori(), angvel=self.get_angvel(), target_vel=vel)
+		self.set_controls(controls)
 
 	# set_target_pos
 

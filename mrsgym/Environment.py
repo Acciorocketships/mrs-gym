@@ -19,7 +19,7 @@ class Environment:
 		return X
 
 
-	def set_actions(self, actions, behaviour='set_controls'):
+	def set_actions(self, actions, behaviour='set_target_vel'):
 		for i, agent in enumerate(self.agents):
 			getattr(agent, behaviour)(actions[i,:])
 

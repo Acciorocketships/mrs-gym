@@ -6,6 +6,7 @@ from collections import deque
 from torch.distributions.normal import Normal
 import torch
 import time
+import math
 
 class MRS(gym.Env):
 
@@ -27,10 +28,11 @@ class MRS(gym.Env):
 		self.AGENT_RADIUS = 0.25
 		self.COMM_RANGE = float('inf')
 		self.RETURN_A = True
+		self.ACTION_TYPE = "set_target_vel"
 		self.set_constants(kwargs)
 		# Constants that depend on other constants
 		self.START_DISTRIBUTION = Normal(torch.tensor([0.,0.,2.]), 1.0) # must have sample() method implemented. can generate size (N,3) or (3,)
-		self.START_ORI = torch.tensor([-180,-30,30,180,30,30]) # shape (N,6) or (N,3) or (6,) or (3,).
+		self.START_ORI = torch.tensor([-math.pi/2,0,0,math.pi/2,0,0]) # shape (N,6) or (N,3) or (6,) or (3,).
 		if len(self.START_ORI.shape)==1:
 			self.START_ORI = self.START_ORI.expand(self.N_AGENTS, -1)
 		self.set_constants(kwargs)
@@ -40,7 +42,7 @@ class MRS(gym.Env):
 		self.steps_since_reset = 0
 		self.last_loop_time = time.monotonic()
 		# Simulation
-		self.simulator = BulletSim(**kwargs)
+		BulletSim.setup()
 		if isinstance(env, str):
 			self.env = env_generator(self.N_AGENTS, env)
 		# Setup
@@ -51,6 +53,8 @@ class MRS(gym.Env):
 		for name, val in kwargs.items():
 			if name in self.__dict__:
 				self.__dict__[name] = val
+			elif hasattr(BulletSim, name):
+				setattr(BulletSim, name, val)
 
 
 	def calc_A(self, X):
@@ -122,7 +126,7 @@ class MRS(gym.Env):
 	# waits for a given dt. If dt is not given, it uses the value from the simulator
 	def wait(self, dt=None):
 		if dt is None:
-			dt = self.simulator.DT
+			dt = BulletSim.DT
 		diff = time.monotonic() - self.last_loop_time
 		waittime = max(dt-diff, 0)
 		time.sleep(waittime)
@@ -133,8 +137,8 @@ class MRS(gym.Env):
 		# actions: N x ACTION_DIM
 		if not isinstance(actions, torch.Tensor):
 			actions = torch.tensor(actions)
-		self.env.set_actions(actions)
-		self.simulator.step_sim()
+		self.env.set_actions(actions, behaviour=self.ACTION_TYPE)
+		BulletSim.step_sim()
 		## Collect Data ##
 		# X: N x D
 		X = self.env.get_X(self.state_fn)
