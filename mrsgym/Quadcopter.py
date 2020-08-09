@@ -7,7 +7,6 @@ import torch
 class Quadcopter(Object):
 
 	ARM_LENGTH = 0.175 # TODO: read this from getLinkState
-	IZZ = 0.004
 	MODEL_PATH = "quadcopter.urdf"
 
 	def __init__(self, pos=[0,0,0], ori=[0,0,0]):

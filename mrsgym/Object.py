@@ -62,7 +62,7 @@ class Object:
 
 
 	def get_angvel(self, mat=False):
-		return torch.tensor(p.getBaseVelocity(self.model)[1])
+		return torch.flip(torch.tensor(p.getBaseVelocity(self.model)[1]), dims=[0])
 		
 
 	def get_pos(self):

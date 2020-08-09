@@ -19,15 +19,17 @@ class QuadControl:
 		self.I_VEL_MAX = float('inf')
 		self.I_ANG_MAX = math.pi/2
 		self.MAX_PITCH = math.pi/6
-		self.Pv = 1.0
-		self.Iv = 0.0
-		self.Dv = 0.5
-		self.Pa = 1.0
+		self.MAX_CONTROL = 0.5
+		self.P_cutoff = 1.0
+		self.Pv = 0.5
+		self.Iv = 0.1
+		self.Dv = 1.0
+		self.Pa = 4.0
 		self.Ia = 0.0
-		self.Da = 0.5
+		self.Da = 0.8
 		# Controller Variables
 		self.vel_last = None
-		self.vel_int = torch.tensor([0,0,4.0])
+		self.vel_int = torch.tensor([0, 0, BulletSim.GRAVITY * self.MASS / self.Iv])
 		self.ang_int = torch.zeros(3)
 
 	def set_constants(self, kwargs):
@@ -50,17 +52,29 @@ class QuadControl:
 	# Input: [Fthrust, Tyaw, Tpitch, Troll]
 	# Fthrust units: N, Typr units: Nm, output units: rad/s
 	def control_to_speed(self, control=[0,0,0,0]):
+		# Values
 		if not isinstance(control, torch.Tensor):
 			control = torch.tensor(control)
 		wrdiff = control[3] / self.THRUST_COEFF / self.ARM_LENGTH # = w1^2 - w3^2
-		wpdiff = control[2] / self.THRUST_COEFF / self.ARM_LENGTH # = w0^2 - w2^2
+		wpdiff = control[2] / self.THRUST_COEFF / self.ARM_LENGTH # = w2^2 - w0^2
 		wydiff = control[1] / self.DRAG_COEFF # = w0^2 - w1^2 + w2^2 - w3^2
 		wtsum = control[0] / self.THRUST_COEFF # = w0^2 + w1^2 + w2^2 + w3^2
-		w0s = (((wydiff + wtsum) / 2) + wpdiff) / 2
+		# Limits
+		wtsum = torch.clamp(wtsum, 0)
+		wpdiff = torch.clamp(wpdiff, -wydiff/2 - wtsum/2, wydiff/2 + wtsum/2)  # wpdiff = -wydiff/2 - wtsum/2    wpdiff = wydiff/2 + wtsum/2
+		wrdiff = torch.clamp(wrdiff, wydiff/2 - wtsum/2, -wydiff/2 + wtsum/2)  # wrdiff = wydiff/2 - wtsum/2     wrdiff = -wydiff/2 + wtsum/2
+		wydiff = torch.clamp(wydiff, -2*abs(wpdiff)-wtsum, 2*abs(wrdiff)+wtsum) # (+/-)2*wpdiff - wtsum = wydiff   (+/-)2*wrdiff + wtsum = wydiff
+		wtsum = torch.clamp(wtsum, abs(wpdiff) + abs(wrdiff) + abs(wydiff))
+		# Motor Speed Squared Calculation
+		w2s = (((wydiff + wtsum) / 2) + wpdiff) / 2
 		w1s = (((wtsum - wydiff) / 2) + wrdiff) / 2
-		w2s = w0s - wpdiff
+		w0s = w2s - wpdiff
 		w3s = w1s - wrdiff
-		speed = torch.sqrt(torch.clamp(torch.tensor([w0s,w1s,w2s,w3s]), 0))
+		speed2 = torch.tensor([w0s,w1s,w2s,w3s])
+		if torch.sum(speed2<0) > 0:
+			speed2 -= speed2.min() # fix rounding error
+		# Motor Speeds
+		speed = torch.sqrt(speed2)
 		return speed
 
 	def control_to_force(self, control=[0,0,0,0]):
@@ -94,9 +108,9 @@ class QuadControl:
 		self.vel_last = vel
 		# P ang
 		ang_err = torch.zeros(3)
-		ang_err[0] = wrap(ori[0] - target_ori[0])
+		ang_err[0] = wrap(target_ori[0] - ori[0])
 		# I ang
-		self.ang_int = torch.clamp(wrap(self.ang_int + ang_err * self.DT), -self.I_ANG_MAX, self.I_ANG_MAX)
+		self.ang_int = torch.clamp(self.ang_int + ang_err * self.DT, -self.I_ANG_MAX, self.I_ANG_MAX)
 		ang_int_err = self.ang_int
 		# D ang
 		ang_dot_err = torch.zeros(3)
@@ -107,7 +121,18 @@ class QuadControl:
 		# Controls (body coordinates)
 		rot = torch.tensor(R.from_euler('zyx', ori, degrees=False).as_matrix()).float()
 		linear_body = rot.T @ linear
-		control = torch.tensor([max(linear_body[2],0), angular[0], linear_body[0], -linear_body[1]])
+		control = torch.tensor([linear_body[2], angular[0], linear_body[0], -linear_body[1]])
+		# Pitch/Roll Cutoffs
+		pitch_diff = 0
+		if abs(ori[1]) > self.MAX_PITCH:
+			pitch_diff = (self.MAX_PITCH - ori[1]) if (ori[1] > 0) else (self.MAX_PITCH + ori[1])
+		roll_diff = 0
+		if abs(ori[2]) > self.MAX_PITCH:
+			roll_diff = (self.MAX_PITCH - ori[2]) if (ori[2] > 0) else (self.MAX_PITCH + ori[2])
+		control[2] += self.P_cutoff * pitch_diff
+		control[3] += self.P_cutoff * roll_diff
+		# Control Cutoff
+		control[1:] = torch.clamp(control[1:], -self.MAX_CONTROL, self.MAX_CONTROL)
 		return control
 
 
