@@ -3,6 +3,7 @@
 ```python
 from mrsgym import *
 import gym
+import torch
 
 def main():
 	N = 3
