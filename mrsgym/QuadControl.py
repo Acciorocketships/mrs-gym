@@ -17,18 +17,21 @@ class QuadControl:
 		self.set_constants(kwargs)
 		# Controller Paremeters
 		self.DT = BulletSim.DT
-		self.Pv = 1.0
-		self.Iv = 0.1
-		self.Dv = 1.0
+		self.Ppr = 1.0
+		self.Ipr = 0.2
+		self.Dpr = 1.0
+		self.Pt = 1.0
+		self.It = 0.1
+		self.Dt = 0.5
 		self.Pa = 3.0
 		self.Ia = 0.0
 		self.Da = 2.0
 		self.MAX_PITCH = math.pi/6
 		# self.P_cutoff = 1.0
 		# Controller Variables
-		self.PID_x = PID(Kp=self.Pv, Ki=self.Iv, Kd=self.Dv, Omax=0.5, Imax=0., wc=1.0)
-		self.PID_y = PID(Kp=self.Pv, Ki=self.Iv, Kd=self.Dv, Omax=0.5, Imax=0., wc=1.0)
-		self.PID_z = PID(Kp=self.Pv, Ki=self.Iv, Kd=self.Dv, Istart=self.MASS*BulletSim.GRAVITY/self.Iv, Omax=float('inf'), Imax=float('inf'), wc=1.0)
+		self.PID_pitch = PID(Kp=self.Ppr, Ki=self.Ipr, Kd=self.Dpr, Omax=0.5, Imax=float('inf'), wc=1.0)
+		self.PID_roll = PID(Kp=self.Ppr, Ki=self.Ipr, Kd=self.Dpr, Omax=0.5, Imax=float('inf'), wc=1.0)
+		self.PID_thrust = PID(Kp=self.Pt, Ki=self.It, Kd=self.Dt, Istart=self.MASS*BulletSim.GRAVITY/self.It, Omax=float('inf'), Imax=float('inf'), wc=1.0)
 		self.PID_yaw = PID(Kp=self.Pa, Ki=self.Ia, Kd=self.Da, Omax=1.0, Imax=float('inf'), wc=1.0)
 
 	def set_constants(self, kwargs):
@@ -99,14 +102,21 @@ class QuadControl:
 		ang_err = wrap(target_ori - ori)
 		ang_err_dot = -wrap(angvel)
 		rot = torch.tensor(R.from_euler('zyx', ori, degrees=False).as_matrix()).float()
-		vel_err = rot.T @ vel_err_world
+		vel_err = rot @ vel_err_world
+		# Conversion
+		C_pitch = 1.0
+		pitch_des = C_pitch * vel_err[0]
+		roll_des = C_pitch * -vel_err[1]
+		C_thrust = 1.0
+		thrust_err = C_thrust * vel_err[2]
+		pitch_err = wrap(pitch_des-ori[1])
+		roll_err = wrap(roll_des-ori[2])
+		# import pdb; pdb.set_trace()
 		# Control
-		pitch = self.PID_x.update(err=vel_err[0], dt=self.DT)
-		roll = -1 * self.PID_y.update(err=vel_err[1], dt=self.DT) # negative roll -> positive y direction
-		thrust = self.PID_z.update(err=vel_err[2], dt=self.DT)
+		pitch = self.PID_pitch.update(err=pitch_err, dt=self.DT)
+		roll = self.PID_roll.update(err=roll_err, dt=self.DT)
+		thrust = self.PID_thrust.update(err=thrust_err, dt=self.DT)
 		yaw = self.PID_yaw.update(err=ang_err[0], err_dot=ang_err_dot[0], dt=self.DT)
-		# pitch += self.PID_x.limit_control(ori[1], self.MAX_PITCH)
-		# roll += self.PID_y.limit_control(ori[2], self.MAX_PITCH)
 		control = torch.tensor([thrust, yaw, pitch, roll])
 		return control
 
