@@ -13,10 +13,6 @@ class Quadcopter(Object):
 		super(Quadcopter, self).__init__(Quadcopter.MODEL_PATH, pos, ori)
 		self.controller = QuadControl()
 
-
-	### Control Input ###
-
-
 	# Input: [F0, F1, F2, F3, Tq]
 	def set_forces(self, forces=[0,0,0,0,0]):
 		p.applyExternalForce( self.model,-1, forceObj=[0.,0.,forces[0]], posObj=[Quadcopter.ARM_LENGTH,0.,0.], flags=p.LINK_FRAME)
@@ -38,5 +34,6 @@ class Quadcopter(Object):
 		controls = self.controller.pid_velocity(vel=self.get_vel(), ori=self.get_ori(), angvel=self.get_angvel(), target_vel=vel)
 		self.set_controls(controls)
 
-	# set_target_pos
+	def set_target_pos(self, pos=[0,0,0]):
+		pass
 

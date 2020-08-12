@@ -1,6 +1,7 @@
 import torch
 import math
 from mrsgym.BulletSim import *
+from mrsgym.PID import *
 
 # Dyanmics and Parameter Defaults:
 # https://support.dce.felk.cvut.cz/mediawiki/images/5/5e/Dp_2017_gopalakrishnan_eswarmurthi.pdf
@@ -16,21 +17,19 @@ class QuadControl:
 		self.set_constants(kwargs)
 		# Controller Paremeters
 		self.DT = BulletSim.DT
-		self.I_VEL_MAX = float('inf')
-		self.I_ANG_MAX = math.pi/2
-		self.MAX_PITCH = math.pi/6
-		self.MAX_CONTROL = 0.5
-		self.P_cutoff = 1.0
-		self.Pv = 0.5
+		self.Pv = 1.0
 		self.Iv = 0.1
 		self.Dv = 1.0
-		self.Pa = 4.0
+		self.Pa = 3.0
 		self.Ia = 0.0
-		self.Da = 0.8
+		self.Da = 2.0
+		self.MAX_PITCH = math.pi/6
+		# self.P_cutoff = 1.0
 		# Controller Variables
-		self.vel_last = None
-		self.vel_int = torch.tensor([0, 0, BulletSim.GRAVITY * self.MASS / self.Iv])
-		self.ang_int = torch.zeros(3)
+		self.PID_x = PID(Kp=self.Pv, Ki=self.Iv, Kd=self.Dv, Omax=0.5, Imax=0., wc=1.0)
+		self.PID_y = PID(Kp=self.Pv, Ki=self.Iv, Kd=self.Dv, Omax=0.5, Imax=0., wc=1.0)
+		self.PID_z = PID(Kp=self.Pv, Ki=self.Iv, Kd=self.Dv, Istart=self.MASS*BulletSim.GRAVITY/self.Iv, Omax=float('inf'), Imax=float('inf'), wc=1.0)
+		self.PID_yaw = PID(Kp=self.Pa, Ki=self.Ia, Kd=self.Da, Omax=1.0, Imax=float('inf'), wc=1.0)
 
 	def set_constants(self, kwargs):
 		for name, val in kwargs.items():
@@ -96,44 +95,21 @@ class QuadControl:
 		elif not isinstance(target_ori, torch.Tensor):
 			target_ori = torch.tensor(target_ori)
 		# Errors
-		# P vel
-		vel_err = target_vel - vel
-		# I vel
-		self.vel_int = torch.clamp(self.vel_int + vel_err * self.DT, -self.I_VEL_MAX, self.I_VEL_MAX)
-		vel_int_err = self.vel_int
-		# D vel
-		if self.vel_last is None:
-			self.vel_last = torch.zeros(3)
-		vel_dot_err = -(vel-self.vel_last) / self.DT
-		self.vel_last = vel
-		# P ang
-		ang_err = torch.zeros(3)
-		ang_err[0] = wrap(target_ori[0] - ori[0])
-		# I ang
-		self.ang_int = torch.clamp(self.ang_int + ang_err * self.DT, -self.I_ANG_MAX, self.I_ANG_MAX)
-		ang_int_err = self.ang_int
-		# D ang
-		ang_dot_err = torch.zeros(3)
-		ang_dot_err[0] = -angvel[0]
-		# Controls (world coordinates)
-		linear = self.Pv * vel_err + self.Iv * vel_int_err + self.Dv * vel_dot_err
-		angular = self.Pa * ang_err + self.Ia * ang_int_err + self.Da * ang_dot_err
-		# Controls (body coordinates)
+		vel_err_world = target_vel - vel
+		ang_err = wrap(target_ori - ori)
+		ang_err_dot = -wrap(angvel)
 		rot = torch.tensor(R.from_euler('zyx', ori, degrees=False).as_matrix()).float()
-		linear_body = rot.T @ linear
-		control = torch.tensor([linear_body[2], angular[0], linear_body[0], -linear_body[1]])
-		# Pitch/Roll Cutoffs
-		pitch_diff = 0
-		if abs(ori[1]) > self.MAX_PITCH:
-			pitch_diff = (self.MAX_PITCH - ori[1]) if (ori[1] > 0) else (self.MAX_PITCH + ori[1])
-		roll_diff = 0
-		if abs(ori[2]) > self.MAX_PITCH:
-			roll_diff = (self.MAX_PITCH - ori[2]) if (ori[2] > 0) else (self.MAX_PITCH + ori[2])
-		control[2] += self.P_cutoff * pitch_diff
-		control[3] += self.P_cutoff * roll_diff
-		# Control Cutoff
-		control[1:] = torch.clamp(control[1:], -self.MAX_CONTROL, self.MAX_CONTROL)
+		vel_err = rot.T @ vel_err_world
+		# Control
+		pitch = self.PID_x.update(err=vel_err[0], dt=self.DT)
+		roll = -1 * self.PID_y.update(err=vel_err[1], dt=self.DT) # negative roll -> positive y direction
+		thrust = self.PID_z.update(err=vel_err[2], dt=self.DT)
+		yaw = self.PID_yaw.update(err=ang_err[0], err_dot=ang_err_dot[0], dt=self.DT)
+		# pitch += self.PID_x.limit_control(ori[1], self.MAX_PITCH)
+		# roll += self.PID_y.limit_control(ori[2], self.MAX_PITCH)
+		control = torch.tensor([thrust, yaw, pitch, roll])
 		return control
+
 
 
 def wrap(angle):
