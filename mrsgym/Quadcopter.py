@@ -14,7 +14,7 @@ class Quadcopter(Object):
 		self.controller = QuadControl()
 
 	# Input: [F0, F1, F2, F3, Tq]
-	def set_forces(self, forces=[0,0,0,0,0]):
+	def set_motorforces(self, forces=[0,0,0,0,0]):
 		p.applyExternalForce( self.model,-1, forceObj=[0.,0.,forces[0]], posObj=[Quadcopter.ARM_LENGTH,0.,0.], flags=p.LINK_FRAME)
 		p.applyExternalForce( self.model,-1, forceObj=[0.,0.,forces[1]], posObj=[0.,Quadcopter.ARM_LENGTH,0.], flags=p.LINK_FRAME)
 		p.applyExternalForce( self.model,-1, forceObj=[0.,0.,forces[2]], posObj=[-Quadcopter.ARM_LENGTH,0.,0.], flags=p.LINK_FRAME)
@@ -23,17 +23,19 @@ class Quadcopter(Object):
 
 	# Input: [w0, w1, w2, w3]
 	def set_speeds(self, speeds=[0,0,0,0]):
-		self.set_forces(self.controller.speed_to_force(speeds))
+		self.set_motorforces(self.controller.speed_to_motorforce(speeds))
 
 	# Input: [Fthrust, Tyaw, Tpitch, Troll]
-	def set_controls(self, controls=[0,0,0,0]):
-		self.set_forces(self.controller.control_to_force(controls))
+	def set_control(self, controls=[0,0,0,0]):
+		self.set_motorforces(self.controller.control_to_motorforce(controls))
 
 
-	def set_target_vel(self, vel=[0,0,0]):
-		controls = self.controller.pid_velocity(vel=self.get_vel(), ori=self.get_ori(), angvel=self.get_angvel(), target_vel=vel)
+	def set_force(self, forces=[0,0,0]):
+		controls = self.controller.force_control(ori=self.get_ori(), angvel=self.get_angvel(), target_force=forces)
 		self.set_controls(controls)
 
+
 	def set_target_pos(self, pos=[0,0,0]):
-		pass
+		controls = self.controller.pid_control(pos=self.get_pos(), vel=self.get_vel(), ori=self.get_ori(), angvel=self.get_angvel(), target_pos=pos)
+		self.set_controls(controls)
 

@@ -1,7 +1,6 @@
 import torch
-import math
+import numpy as np
 from mrsgym.BulletSim import *
-from mrsgym.PID import *
 
 # Dyanmics and Parameter Defaults:
 # https://support.dce.felk.cvut.cz/mediawiki/images/5/5e/Dp_2017_gopalakrishnan_eswarmurthi.pdf
@@ -16,23 +15,7 @@ class QuadControl:
 		self.MASS = 0.5
 		self.set_constants(kwargs)
 		# Controller Paremeters
-		self.DT = BulletSim.DT
-		self.Ppr = 1.0
-		self.Ipr = 0.2
-		self.Dpr = 1.0
-		self.Pt = 1.0
-		self.It = 0.1
-		self.Dt = 0.5
-		self.Pa = 3.0
-		self.Ia = 0.0
-		self.Da = 2.0
-		self.MAX_PITCH = math.pi/6
-		# self.P_cutoff = 1.0
-		# Controller Variables
-		self.PID_pitch = PID(Kp=self.Ppr, Ki=self.Ipr, Kd=self.Dpr, Omax=0.5, Imax=float('inf'), wc=1.0)
-		self.PID_roll = PID(Kp=self.Ppr, Ki=self.Ipr, Kd=self.Dpr, Omax=0.5, Imax=float('inf'), wc=1.0)
-		self.PID_thrust = PID(Kp=self.Pt, Ki=self.It, Kd=self.Dt, Istart=self.MASS*BulletSim.GRAVITY/self.It, Omax=float('inf'), Imax=float('inf'), wc=1.0)
-		self.PID_yaw = PID(Kp=self.Pa, Ki=self.Ia, Kd=self.Da, Omax=1.0, Imax=float('inf'), wc=1.0)
+		self.MAX_ROLL_PITCH = np.pi/6
 
 	def set_constants(self, kwargs):
 		for name, val in kwargs.items():
@@ -42,7 +25,7 @@ class QuadControl:
 	# Input: angular velocity of each motor (4,)
 	# Output: force at each motor and the torque in the Z direction (5,)
 	# speed units: rad/s, force units: N
-	def speed_to_force(self, speed=[0,0,0,0]):
+	def speed_to_motorforce(self, speed=[0,0,0,0]):
 		if not isinstance(speed, torch.Tensor):
 			speed = torch.tensor(speed)
 		w2 = speed ** 2
@@ -79,58 +62,60 @@ class QuadControl:
 		speed = torch.sqrt(speed2)
 		return speed
 
-	def control_to_force(self, control=[0,0,0,0]):
-		return self.speed_to_force(self.control_to_speed(control))
+
+	def control_to_motorforce(self, control=[0,0,0,0]):
+		return self.speed_to_motorforce(self.control_to_speed(control))
 
 
-	def pid_velocity(self, vel=[0,0,0], ori=[0,0,0], angvel=[0,0,0], target_vel=[0,0,0], target_ori=None):
-		# Inputs
-		if not isinstance(vel, torch.Tensor):
-			vel = torch.tensor(vel)
-		if not isinstance(ori, torch.Tensor):
-			ori = torch.tensor(ori)
-		if not isinstance(angvel, torch.Tensor):
-			angvel = torch.tensor(angvel)
-		if not isinstance(target_vel, torch.Tensor):
-			target_vel = torch.tensor(target_vel)
-		if target_ori is None:
-			target_ori = torch.tensor([math.atan2(target_vel[1], target_vel[0]), 0, 0])
-		elif not isinstance(target_ori, torch.Tensor):
-			target_ori = torch.tensor(target_ori)
-		# Errors
-		vel_err_world = target_vel - vel
-		ang_err = wrap(target_ori - ori)
-		ang_err_dot = -wrap(angvel)
-		rot = torch.tensor(R.from_euler('zyx', ori, degrees=False).as_matrix()).float()
-		vel_err = rot @ vel_err_world
-		# Conversion
-		C_pitch = 1.0
-		pitch_des = C_pitch * vel_err[0]
-		roll_des = C_pitch * -vel_err[1]
-		C_thrust = 1.0
-		thrust_err = C_thrust * vel_err[2]
-		pitch_err = wrap(pitch_des-ori[1])
-		roll_err = wrap(roll_des-ori[2])
-		# import pdb; pdb.set_trace()
-		# Control
-		pitch = self.PID_pitch.update(err=pitch_err, dt=self.DT)
-		roll = self.PID_roll.update(err=roll_err, dt=self.DT)
-		thrust = self.PID_thrust.update(err=thrust_err, dt=self.DT)
-		yaw = self.PID_yaw.update(err=ang_err[0], err_dot=ang_err_dot[0], dt=self.DT)
-		control = torch.tensor([thrust, yaw, pitch, roll])
+	def pid_control(self, pos, vel, ori, angvel, target_pos=None, target_vel=None):
+		pos = np.array(pos)
+		vel = np.array(vel)
+		target_pos = np.array(target_pos)
+		pos_e = target_pos - pos
+		if not hasattr(self, 'integral_pos_e'):
+			self.integral_pos_e = np.zeros(3)
+		d_pos_e = -vel # TODO: add velocity control
+		self.integral_pos_e = self.integral_pos_e + pos_e*BulletSim.DT
+		P_COEFF_FOR = np.array([.3, .3, .6]); I_COEFF_FOR = np.array([.0001, .0001, .0001]); D_COEFF_FOR = np.array([.6, .6, .8])
+		target_force = np.array([0,0,BulletSim.GRAVITY*self.MASS]) + np.multiply(P_COEFF_FOR,pos_e) + np.multiply(I_COEFF_FOR,self.integral_pos_e) + np.multiply(D_COEFF_FOR,d_pos_e)
+		return self.force_control(ori, angvel, target_force)
+
+
+
+	def force_control(self, ori, angvel, target_force):
+		cur_rpy = np.flip(np.array(ori))
+		cur_angvel = np.flip(np.array(angvel))
+		cur_rotation = torch.tensor(R.from_euler('zyx', ori, degrees=False).as_matrix()).float()
+		if not hasattr(self, 'integral_rpy_e'):
+			self.integral_rpy_e = np.zeros(3)
+		computed_target_rpy = np.zeros(3)
+		sign_z =  np.sign(target_force[2])
+		if sign_z == 0: sign_z = 1 
+		computed_target_rpy[0] = np.arcsin(-sign_z*target_force[1] / np.linalg.norm(target_force))
+		computed_target_rpy[1] = np.arctan2(sign_z*target_force[0],sign_z*target_force[2])
+		computed_target_rpy[2] = 0. # TODO: add yaw control
+		computed_target_rpy[0] = np.clip(computed_target_rpy[0], -self.MAX_ROLL_PITCH, self.MAX_ROLL_PITCH)
+		computed_target_rpy[1] = np.clip(computed_target_rpy[1], -self.MAX_ROLL_PITCH, self.MAX_ROLL_PITCH)
+		rpy_e = wrap(computed_target_rpy - cur_rpy)
+		d_rpy_e = -cur_angvel
+		self.integral_rpy_e = self.integral_rpy_e + rpy_e*BulletSim.DT
+		P_COEFF_TOR = np.array([.3, .3, .05]); I_COEFF_TOR = np.array([.0001, .0001, .0001]); D_COEFF_TOR = np.array([.3, .3, .5])
+		target_torques = np.multiply(P_COEFF_TOR,rpy_e) + np.multiply(I_COEFF_TOR,self.integral_rpy_e) + np.multiply(D_COEFF_TOR,d_rpy_e)
+		target_force = np.dot(cur_rotation, target_force)
+		control = torch.tensor([target_force[2], target_torques[2], target_torques[1], target_torques[0]])
 		return control
 
 
 
 def wrap(angle):
-	if isinstance(angle, torch.Tensor):
-		angle[angle<-math.pi/2] += math.pi
-		angle[angle>math.pi/2] -= math.pi
+	if isinstance(angle, np.ndarray):
+		angle[angle<-np.pi] += 2*np.pi
+		angle[angle>np.pi] -= 2*np.pi
 	else:
-		if angle < -math.pi/2:
-			angle += math.pi
-		elif angle > math.pi/2:
-			angle -= math.pi
+		if angle < -np.pi:
+			angle += 2*np.pi
+		elif angle > np.pi:
+			angle -= 2*np.pi
 	return angle
 
 

@@ -132,12 +132,14 @@ class MRS(gym.Env):
 		time.sleep(waittime)
 
 
-	def step(self, actions):
+	def step(self, actions, ACTION_TYPE=None):
 		## Set Action and Step Environment ##
 		# actions: N x ACTION_DIM
 		if not isinstance(actions, torch.Tensor):
 			actions = torch.tensor(actions)
-		self.env.set_actions(actions, behaviour=self.ACTION_TYPE)
+		if ACTION_TYPE is None:
+			ACTION_TYPE = self.ACTION_TYPE
+		self.env.set_actions(actions, behaviour=ACTION_TYPE)
 		BulletSim.step_sim()
 		## Collect Data ##
 		# X: N x D
