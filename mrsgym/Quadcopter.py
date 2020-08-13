@@ -6,36 +6,51 @@ import torch
 
 class Quadcopter(Object):
 
-	ARM_LENGTH = 0.175 # TODO: read this from getLinkState
 	MODEL_PATH = "quadcopter.urdf"
 
 	def __init__(self, pos=[0,0,0], ori=[0,0,0]):
 		super(Quadcopter, self).__init__(Quadcopter.MODEL_PATH, pos, ori)
-		self.controller = QuadControl()
+		self.attributes = self.read_attributes()
+		self.controller = QuadControl(self.attributes)
+
+	def read_attributes(self):
+		attributes = {}
+		attributes['MASS'] = p.getDynamicsInfo(self.uid, -1)[0]
+		Ixx, Iyy, Izz = p.getDynamicsInfo(self.uid, -1)[2]
+		attributes['Ixx'] = Ixx; attributes["Iyy"] = Iyy; attributes["Izz"] = Izz
+		attributes['ARM_LENGTH'] = 0.175
+		attributes["THRUST_COEFF"] = 1.5
+		attributes["DRAG_COEFF"] = 1.3
+		return attributes
 
 	# Input: [F0, F1, F2, F3, Tq]
 	def set_motorforces(self, forces=[0,0,0,0,0]):
-		p.applyExternalForce( self.model,-1, forceObj=[0.,0.,forces[0]], posObj=[Quadcopter.ARM_LENGTH,0.,0.], flags=p.LINK_FRAME)
-		p.applyExternalForce( self.model,-1, forceObj=[0.,0.,forces[1]], posObj=[0.,Quadcopter.ARM_LENGTH,0.], flags=p.LINK_FRAME)
-		p.applyExternalForce( self.model,-1, forceObj=[0.,0.,forces[2]], posObj=[-Quadcopter.ARM_LENGTH,0.,0.], flags=p.LINK_FRAME)
-		p.applyExternalForce( self.model,-1, forceObj=[0.,0.,forces[3]], posObj=[0.,-Quadcopter.ARM_LENGTH,0.], flags=p.LINK_FRAME)
-		p.applyExternalTorque(self.model,-1, torqueObj=[0.,0.,forces[4]], flags=p.LINK_FRAME)
+		p.applyExternalForce( self.uid,-1, forceObj=[0.,0.,forces[0]], posObj=[self.attributes["ARM_LENGTH"],0.,0.], flags=p.LINK_FRAME)
+		p.applyExternalForce( self.uid,-1, forceObj=[0.,0.,forces[1]], posObj=[0.,self.attributes["ARM_LENGTH"],0.], flags=p.LINK_FRAME)
+		p.applyExternalForce( self.uid,-1, forceObj=[0.,0.,forces[2]], posObj=[-self.attributes["ARM_LENGTH"],0.,0.], flags=p.LINK_FRAME)
+		p.applyExternalForce( self.uid,-1, forceObj=[0.,0.,forces[3]], posObj=[0.,-self.attributes["ARM_LENGTH"],0.], flags=p.LINK_FRAME)
+		p.applyExternalTorque(self.uid,-1, torqueObj=[0.,0.,forces[4]], flags=p.LINK_FRAME)
 
 	# Input: [w0, w1, w2, w3]
 	def set_speeds(self, speeds=[0,0,0,0]):
 		self.set_motorforces(self.controller.speed_to_motorforce(speeds))
 
-	# Input: [Fthrust, Tyaw, Tpitch, Troll]
-	def set_control(self, controls=[0,0,0,0]):
-		self.set_motorforces(self.controller.control_to_motorforce(controls))
+	# Input: [Fthrust, Troll, Tpitch, Tyaw]
+	def set_control(self, control=[0,0,0,0]):
+		self.set_motorforces(self.controller.control_to_motorforce(control))
 
 
 	def set_force(self, forces=[0,0,0]):
-		controls = self.controller.force_control(ori=self.get_ori(), angvel=self.get_angvel(), target_force=forces)
-		self.set_controls(controls)
+		control = self.controller.force_control(ori=self.get_ori(), angvel=self.get_angvel(), target_force=forces)
+		self.set_control(control)
 
 
 	def set_target_pos(self, pos=[0,0,0]):
-		controls = self.controller.pid_control(pos=self.get_pos(), vel=self.get_vel(), ori=self.get_ori(), angvel=self.get_angvel(), target_pos=pos)
-		self.set_controls(controls)
+		control = self.controller.pos_control(pos=self.get_pos(), vel=self.get_vel(), ori=self.get_ori(), angvel=self.get_angvel(), target_pos=pos)
+		self.set_control(control)
+
+
+	def set_target_vel(self, vel=[0,0,0]):
+		control = self.controller.vel_control(vel=self.get_vel(), ori=self.get_ori(), angvel=self.get_angvel(), target_vel=vel)
+		self.set_control(control)
 

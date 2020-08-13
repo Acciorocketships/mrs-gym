@@ -32,7 +32,7 @@ class MRS(gym.Env):
 		self.set_constants(kwargs)
 		# Constants that depend on other constants
 		self.START_DISTRIBUTION = Normal(torch.tensor([0.,0.,2.]), 1.0) # must have sample() method implemented. can generate size (N,3) or (3,)
-		self.START_ORI = torch.tensor([-math.pi/2,0,0,math.pi/2,0,0]) # shape (N,6) or (N,3) or (6,) or (3,).
+		self.START_ORI = torch.tensor([0,0,-math.pi/2,0,0,math.pi/2]) # shape (N,6) or (N,3) or (6,) or (3,).
 		if len(self.START_ORI.shape)==1:
 			self.START_ORI = self.START_ORI.expand(self.N_AGENTS, -1)
 		self.set_constants(kwargs)
