@@ -1,5 +1,12 @@
 # Multi Robot Systems Gym
 
+## Installation
+```bash
+cd mrsgym
+pip3 install -e .
+```
+
+## Example
 ```python
 from mrsgym import *
 import gym
