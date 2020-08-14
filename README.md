@@ -60,7 +60,7 @@ if __name__ == '__main__':
 	- REAL_TIME: (bool) If true, the environment runs asynchronously. If false, one time step elapses whenever env.step(actions) is called.
 	- HEADLESS: (bool) If true, the simulation runs without a GUI component.
 	
-2. reset
+2. `reset`
 	
 	Example Usage: `mrsenv.reset(vel=torch.tensor([1.,0.,0.]).expand(N_AGENTS,-1)`
 	
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 	- ori: ((N_AGENTS x 3) tensor) overrides START_ORI to specify starting euler angles [roll, pitch, yaw] for all agents. All euler angles in this library are given as extrinsic rotations in the order 'xyz' (or equivalently intrinsic rotations in the order 'ZYX')
 	- angvel: ((N_AGENTS x 3) tensor) sets starting angular velocities [wx, wy, yz] for all agents instead of the default value of [0, 0, 0]
 		
-3. wait
+3. `wait`
 
 	Example Usage: `mrsenv.wait()`
 	
@@ -81,9 +81,9 @@ if __name__ == '__main__':
 	Arguments:
 	- dt: (float) sets the desired loop time. If none is given, then BulletSim.DT is used
 		
-4. step
+4. `step`
 
-	Example Usage: `mrsenv.step(torch.zeros(N_AGENTS,3), ACTION_TYPE="set_target_pos")
+	Example Usage: `mrsenv.step(torch.zeros(N_AGENTS,3), ACTION_TYPE="set_target_pos")`
 	
 	Description: sets the actions and steps the simulation by one timestep
 	
