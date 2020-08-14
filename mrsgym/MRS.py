@@ -15,7 +15,7 @@ class MRS(gym.Env):
 	# state_fn:: input: Quadcopter, output: size D tensor
 	# reward_fn:: input: Environment, output: scalar
 	# info_fn:: input: Environment, output: dict
-	def __init__(self, state_fn=None, reward_fn=None, info_fn=None, env='simple', **kwargs):
+	def __init__(self, state_fn, reward_fn=None, info_fn=None, env='simple', **kwargs):
 		super(MRS, self).__init__()
 		# Inputs
 		self.state_fn = state_fn
@@ -29,9 +29,10 @@ class MRS(gym.Env):
 		self.COMM_RANGE = float('inf')
 		self.RETURN_A = True
 		self.ACTION_TYPE = "set_target_vel"
+		self.HEADLESS = False
 		self.set_constants(kwargs)
 		# Constants that depend on other constants
-		self.START_DISTRIBUTION = Normal(torch.tensor([0.,0.,2.]), 1.0) # must have sample() method implemented. can generate size (N,3) or (3,)
+		self.START_POS = Normal(torch.tensor([0.,0.,2.]), 1.0) # must have sample() method implemented. can generate size (N,3) or (3,)
 		self.START_ORI = torch.tensor([0,0,-math.pi/2,0,0,math.pi/2]) # shape (N,6) or (N,3) or (6,) or (3,).
 		if len(self.START_ORI.shape)==1:
 			self.START_ORI = self.START_ORI.expand(self.N_AGENTS, -1)
@@ -68,10 +69,12 @@ class MRS(gym.Env):
 
 
 	def generate_start_pos(self):
-		startpos = self.START_DISTRIBUTION.sample()
+		if isinstance(self.START_POS, torch.Tensor):
+			return self.START_POS
+		startpos = self.START_POS.sample()
 		sample_one_agent = False
 		if len(startpos.shape)==1:
-			startpos = torch.stack([self.START_DISTRIBUTION.sample() for _ in range(self.N_AGENTS)], dim=0)
+			startpos = torch.stack([self.START_POS.sample() for _ in range(self.N_AGENTS)], dim=0)
 			sample_one_agent = True
 		codist = self.get_relative_position(startpos).norm(dim=2)
 		codist.diagonal().fill_(float('inf'))
@@ -79,9 +82,9 @@ class MRS(gym.Env):
 			idxs = torch.where(codist < 2*self.AGENT_RADIUS)[0]
 			if sample_one_agent:
 				for idx in idxs:
-					startpos[idx,:] = self.START_DISTRIBUTION.sample()
+					startpos[idx,:] = self.START_POS.sample()
 			else:
-				startposnew = self.START_DISTRIBUTION.sample()
+				startposnew = self.START_POS.sample()
 				startpos[idxs,:] = startposnew[idxs,:]
 			codist = self.get_relative_position(startpos).norm(dim=2)
 			codist.diagonal().fill_(float('inf'))

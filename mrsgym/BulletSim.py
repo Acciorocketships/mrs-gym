@@ -10,10 +10,14 @@ class BulletSim:
 	GRAVITY = 9.81
 	DT = 0.01
 	REAL_TIME = False # Async
+	HEADLESS = False
 
 	@staticmethod
 	def setup():
-		client = p.connect(p.GUI)
+		if BulletSim.HEADLESS:
+			client = p.connect(p.DIRECT)
+		else:
+			client = p.connect(p.GUI)
 		p.setGravity(0,0,-BulletSim.GRAVITY)
 		p.setTimeStep(BulletSim.DT)
 		p.setRealTimeSimulation(1 if BulletSim.REAL_TIME else 0)
