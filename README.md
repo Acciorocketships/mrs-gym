@@ -5,6 +5,9 @@
 pip3 install -e .
 ```
 
+## Demo
+![Position Control Demo](demo.gif)
+
 ## Example
 ```python
 from mrsgym import *
