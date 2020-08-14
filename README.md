@@ -81,7 +81,7 @@ if __name__ == '__main__':
 
 	Example Usage: `mrsenv.wait()`
 	
-	Description: times the loop time of execution and pauses for the appropriate amount of time so the simulation runs with a period of DT and plays at 1x speed.
+	Description: measures the loop time of execution and pauses for the appropriate amount of time so the simulation runs with a period of DT and plays at 1x speed.
 	
 	Arguments:
 	- dt: (float) sets the desired loop time. If none is given, then BulletSim.DT is used
