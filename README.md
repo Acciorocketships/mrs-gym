@@ -100,9 +100,9 @@ if __name__ == '__main__':
 	- ACTION_TYPE: (str) overrides the action type specified in the initialisation of the environment
 	
 	Outputs: (obs, reward, done, info)
-	- obs: ((N_AGENTS x STATE_SIZE) tensor) a matrix of the states returned by state_fn(agent) for all agents
+	- obs: ((N_AGENTS x STATE_SIZE x K_HOPS+1) tensor) a matrix of the states returned by state_fn(agent) for all agents
 	- reward: (float) the reward calculated by reward_fn(self.env). It can have any type, but the default is 0.0 if a reward_fn is not given.
 	- done: ((N_AGENTS) bool tensor) an array indicating which agents are experiencing a collision. A custom done function can be used by overriding mrsenv.env.get_done()
-	- info: (dict) a dict of extra information that is calculated by info_fn(self.env). The adjacency matrix is also stored in info["A"] if RETURN_A is true
+	- info: (dict) a dict of extra information that is calculated by info_fn(self.env). The adjacency matrix (N_AGENTS x N_AGENTS x K_HOPS+1) is also stored in info["A"] if RETURN_A is true
 		
 		
