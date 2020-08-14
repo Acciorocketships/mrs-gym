@@ -1,5 +1,5 @@
-import pybullet as p
 from mrsgym.BulletSim import *
+import pybullet as p
 from scipy.spatial.transform import Rotation as R
 import torch
 
@@ -114,29 +114,3 @@ class Object:
 	def get_image(self):
 		pass
 
-
-def create_box(dim=[1,1,1], pos=[0,0,0], ori=[0,0,0], mass=0, collisions=True):
-	if isinstance(dim, torch.Tensor):
-		dim = dim.tolist()
-	if collisions:
-		uid = p.createCollisionShape(p.GEOM_BOX, halfExtents=dim)
-		if mass != 0:
-			uid = p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=uid)
-	else:
-		uid = p.createVisualShape(p.GEOM_BOX, halfExtents=dim)
-		if mass != 0:
-			uid = p.createMultiBody(baseMass=mass, baseVisualShapeIndex=uid)
-	obj = Object(uid=uid, pos=pos, ori=ori)
-	return obj
-
-def create_sphere(radius=0.5, pos=[0,0,0], mass=0, collisions=True):
-	if collisions:
-		uid = p.createCollisionShape(p.GEOM_SPHERE, radius=radius)
-		if mass != 0:
-			uid = p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=uid)
-	else:
-		uid = p.createVisualShape(p.GEOM_SPHERE, radius=radius)
-		if mass != 0:
-			uid = p.createMultiBody(baseMass=mass, baseVisualShapeIndex=uid)
-	obj = Object(uid=uid, pos=pos)
-	return obj

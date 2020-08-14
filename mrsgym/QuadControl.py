@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from mrsgym.BulletSim import *
+from mrsgym.Util import wrap_angle
 
 # Dyanmics and Parameter Defaults:
 # https://support.dce.felk.cvut.cz/mediawiki/images/5/5e/Dp_2017_gopalakrishnan_eswarmurthi.pdf
@@ -123,19 +124,6 @@ class QuadControl:
 		target_force = np.dot(cur_rotation, target_force)
 		control = torch.tensor([target_force[2], target_torques[0], target_torques[1], target_torques[2]])
 		return control
-
-
-
-def wrap_angle(angle, margin=np.pi):
-	if isinstance(angle, np.ndarray):
-		angle[angle<-margin] += 2*margin
-		angle[angle>margin] -= 2*margin
-	else:
-		if angle < -margin:
-			angle += 2*margin
-		elif angle > margin:
-			angle -= 2*margin
-	return angle
 
 
 

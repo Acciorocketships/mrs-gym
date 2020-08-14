@@ -51,7 +51,7 @@ class Environment:
 			getattr(agent, behaviour)(actions[i,:])
 
 
-	def get_done(self):
+	def get_done(self, *args, **kwargs):
 		return torch.tensor([agent.collision() for agent in self.agents])
 
 
@@ -75,13 +75,3 @@ class Environment:
 # add/read debug parameter, add debug text
 
 # enable/disable collisions (single and pairwise)
-
-
-# simple environment generator
-def env_generator(N=1, envtype='simple'):
-	env = Environment()
-	env.init_agents(N)
-	if envtype == 'simple':
-		ground = Object("plane.urdf", pos=[0,0,0], ori=[0,0,0])
-		env.add_object(ground)
-	return env
