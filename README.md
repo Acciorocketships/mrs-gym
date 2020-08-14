@@ -38,6 +38,12 @@ if __name__ == '__main__':
 	Description: creates the MRS gym environment
 	
 	Arguments:
+	- state_fn: (function) [required] specifies the content of the obs output of mrsenv.step(actions). Takes an instance of the Quadcopter class as an input, and produces a one-dimensional (STATE_SIZE) tensor as an output
+	- reward_fn: (function) specifies the content of the reward output of mrsenv.step(actions). Takes an instance of the Environment class as an input, and produces an output of any type (default is 0.0)
+	- info_fn: (function) specifies the content of the info output of mrsenv.step(actions). Takes an instance of the Environment class as an input, and produces a dict as an output
+	- env: (Environment OR str) defines the environment, which contains all objects and agents. Choose from:
+		1. Environment: uses a user-defined environment. See the Environment class for how to construct it manually
+		2. "simple": creates a world with N_AGENTS agents and a plane at z=0. This is the default
 	- N_AGENTS: (int) sets the number of agents in the environment
 	- K_HOPS: (int) sets the number of consecutive time steps to return in the observation, which is of size (N_AGENTS x STATE_SIZE x K_HOPS+1)
 	- AGENT_RADIUS: (float) used purely for start position generation, this prevents agents from overlapping
