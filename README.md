@@ -91,7 +91,7 @@ if __name__ == '__main__':
 		
 4. `step`
 
-	Example Usage: `mrsenv.step(torch.zeros(N_AGENTS,3), ACTION_TYPE="set_target_pos")`
+	Example Usage: `mrsenv.step(torch.zeros(N_AGENTS,3), ACTION_TYPE="set_target_vel")`
 	
 	Description: sets the actions and steps the simulation by one timestep
 	
