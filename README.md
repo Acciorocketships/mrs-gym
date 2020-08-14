@@ -2,7 +2,6 @@
 
 ## Installation
 ```bash
-cd mrsgym
 pip3 install -e .
 ```
 
