@@ -3,32 +3,35 @@ import gym
 from gym import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 
-defaults = {
-	"state_fn": lambda quad: torch.tensor([]),
-	"reward_fn": lambda env: 0.0,
-	"done_fn": lambda env, steps: torch.any(torch.tensor([agent.collision() for agent in self.agents]))
-	"info_fn": lambda env: {},
-	"env": "simple",
-	"ACTION_TRANSFORM": lambda action: action,
-	"STATE_SIZE": 0,
-	"ACTION_DIM": 3,
-	"N_AGENTS": 1,
-}
 
 class MRS_RLlib_MultiAgent(MRS, MultiAgentEnv):
 
-	def __init__(self, config=defaults):
-		MRS.__init__(**config)
-		self.action_space = spaces.Box(np.zeros(self.ACTION_DIM), np.ones(self.ACTION_DIM))
-		self.observation_space = spaces.Box(np.zeros(self.STATE_SIZE), np.ones(self.STATE_SIZE))
-		self.convert_agents_to_dict()
+	defaults = {
+		"state_fn": lambda quad: torch.tensor([]),
+		"reward_fn": lambda env: 0.0,
+		"done_fn": lambda env, steps: torch.any(torch.tensor([agent.collision() for agent in env.agents.values()])),
+		"info_fn": lambda env: {},
+		"env": "simple",
+		"ACTION_TYPE": "set_target_pos",
+		"ACTION_TRANSFORM": lambda action: action,
+		"STATE_SIZE": 0,
+		"ACTION_DIM": 3,
+		"N_AGENTS": 1,
+	}
+
+	def __init__(self, config={}):
+		parameters = MRS_RLlib_MultiAgent.defaults; parameters.update(config)
+		super(MRS_RLlib_MultiAgent, self).__init__(**parameters)
+		self.action_space = spaces.Box(np.zeros(self.ACTION_DIM), np.ones(self.ACTION_DIM),dtype=np.float64)
+		self.observation_space = spaces.Box(np.zeros(self.STATE_SIZE), np.ones(self.STATE_SIZE),dtype=np.float64)
+		self.convert_agents_to_dict(self.env)
+		self.reset()
 
 	def convert_agents_to_dict(self, env):
 		num_agents = len(env.agents)
 		agent_names = [("agent%d" % i) for i in range(num_agents)]
 		agent_dict = {agent_names[i]: env.agents[i] for i in range(num_agents)}
 		env.agents = agent_dict
-		self.agent_names = agent_names
 		env.agent_names = agent_names
 
 	def switch_function_names(self, names):
@@ -37,25 +40,26 @@ class MRS_RLlib_MultiAgent(MRS, MultiAgentEnv):
 			setattr(self, name, getattr(self, "_"+name))
 
 	def calc_obs(self):
-		return {agent_name: self.state_fn(self.env.agents[agent_name]) for agent_name in self.agent_names}
+		return {agent_name: self.state_fn(self.env.agents[agent_name]) for agent_name in self.env.agent_names}
 
 	def calc_reward(self):
 		return self.reward_fn(self.env)
 
 	def calc_done(self):
-		return 
+		return self.done_fn(self.env, self.steps_since_reset)
 
-	def calc_obs(self):
-		return {agent_name: self.state_fn(self.env.agents[agent_name]) for agent_name in self.agent_names}
+	def calc_info(self):
+		return self.info_fn(self.env)
 
-	
 	def reset(self):
+		if not isinstance(self.env.agents, dict):
+			return
 		self.N_AGENTS = len(self.env.agents)
 		pos = self.generate_start_pos()
 		ori = self.generate_start_ori()
 		vel = torch.zeros(self.N_AGENTS, 3)
 		angvel = torch.zeros(self.N_AGENTS, 3)
-		for i, agent_name in enumerate(self.agent_names):
+		for i, agent_name in enumerate(self.env.agent_names):
 			self.env.agents[agent_name].set_state(pos=pos[i,:], ori=ori[i,:], vel=vel[i,:], angvel=angvel[i,:])
 		return self.calc_obs()
 

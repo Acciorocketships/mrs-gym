@@ -28,6 +28,7 @@ class MRS(gym.Env):
 		self.N_AGENTS = 1
 		self.K_HOPS = 0
 		self.STATE_SIZE = None
+		self.ACTION_DIM = None
 		self.AGENT_RADIUS = 0.25
 		self.COMM_RANGE = float('inf')
 		self.RETURN_A = True
