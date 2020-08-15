@@ -19,3 +19,8 @@ register(
 	id='mrs-rllib-multiagent-v0',
 	entry_point='mrsgym:MRS_RLlib_MultiAgent',
 )
+
+register(
+	id='mrs-rllib-v0',
+	entry_point='mrsgym:MRS_RLlib'
+)

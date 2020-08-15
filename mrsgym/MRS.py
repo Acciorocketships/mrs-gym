@@ -2,11 +2,12 @@ from mrsgym.BulletSim import *
 from mrsgym.Util import *
 from mrsgym.EnvCreator import *
 import gym
+from gym.spaces import Box
 from collections import deque
 from torch.distributions import *
 import torch
 import time
-import math
+import numpy as np
 
 class MRS(gym.Env):
 
@@ -27,8 +28,8 @@ class MRS(gym.Env):
 		# Constants
 		self.N_AGENTS = 1
 		self.K_HOPS = 0
-		self.STATE_SIZE = None
-		self.ACTION_DIM = None
+		self.STATE_SIZE = 0
+		self.ACTION_DIM = 3
 		self.AGENT_RADIUS = 0.25
 		self.COMM_RANGE = float('inf')
 		self.RETURN_A = True
@@ -37,9 +38,10 @@ class MRS(gym.Env):
 		self.MAX_ACTION_MAG = 1.0
 		self.set_constants(kwargs)
 		# Constants that depend on other constants
-		self.action_space = TransformedDistribution(Uniform(low=-self.MAX_ACTION_MAG*torch.ones(self.N_AGENTS,3), high=self.MAX_ACTION_MAG*torch.ones(self.N_AGENTS,3)), [SphereTransform(radius=self.MAX_ACTION_MAG, within=True)])
+		self.observation_space = Box(np.zeros((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1)), np.ones((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1)), dtype=np.float64)
+		self.action_space = Box(np.zeros((self.N_AGENTS,self.ACTION_DIM)), np.ones((self.N_AGENTS,self.ACTION_DIM)), dtype=np.float64)
 		self.START_POS = Normal(torch.tensor([0.,0.,2.]), 1.0) # must have sample() method implemented. can generate size (N,3) or (3,)
-		self.START_ORI = torch.tensor([0,0,-math.pi/2,0,0,math.pi/2]) # shape (N,6) or (N,3) or (6,) or (3,).
+		self.START_ORI = torch.tensor([0,0,-np.pi/2,0,0,np.pi/2]) # shape (N,6) or (N,3) or (6,) or (3,).
 		if len(self.START_ORI.shape)==1:
 			self.START_ORI = self.START_ORI.expand(self.N_AGENTS, -1)
 		self.set_constants(kwargs)

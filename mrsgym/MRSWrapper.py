@@ -80,3 +80,36 @@ class MRS_RLlib_MultiAgent(MRS, MultiAgentEnv):
 		# Return
 		return obs, reward, done, info
 
+
+
+class MRS_RLlib(MRS):
+
+	defaults = {
+		"state_fn": lambda quad: torch.tensor([]),
+		"reward_fn": lambda env: 0.0,
+		"done_fn": lambda env, steps: torch.any(torch.tensor([agent.collision() for agent in env.agents.values()])),
+		"info_fn": lambda env: {},
+		"env": "simple",
+		"ACTION_TYPE": "set_target_pos",
+		"ACTION_TRANSFORM": lambda action: action,
+		"STATE_SIZE": 0,
+		"ACTION_DIM": 3,
+		"N_AGENTS": 1,
+	}
+
+	def __init__(self, config={}):
+		parameters = MRS_RLlib_MultiAgent.defaults; parameters.update(config)
+		super(MRS_RLlib_MultiAgent, self).__init__(**parameters)
+		self.ACTION_TRANSFORM = parameters.get("ACTION_TRANSFORM", lambda action: action)
+		self.switch_function_names(["step"])
+
+
+	def switch_function_names(self, names):
+		for name in names:
+			setattr(self, name+"_mrs", getattr(self, name))
+			setattr(self, name, getattr(self, "_"+name))
+
+
+	def _step(self, actions):
+		actions = self.ACTION_TRANSFORM(actions)
+		return self.step_mrs(actions)
