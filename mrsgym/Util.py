@@ -1,8 +1,5 @@
-
 import numpy as np
-from scipy.special import gamma
 import torch
-import pybullet as p
 
 def wrap_angle(angle, margin=np.pi):
 	if isinstance(angle, np.ndarray):

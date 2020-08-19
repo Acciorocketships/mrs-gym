@@ -17,13 +17,14 @@ class MRS(gym.Env):
 	# reward_fn:: input: Environment, output: scalar
 	# done_fn:: input: Environment, steps_since_reset, output: bool
 	# info_fn:: input: Environment, output: dict
-	def __init__(self, state_fn, reward_fn=None, done_fn=None, info_fn=None, env='simple', **kwargs):
+	def __init__(self, state_fn, reward_fn=None, done_fn=None, info_fn=None, update_fn=None, env='simple', **kwargs):
 		super(MRS, self).__init__()
 		# Inputs
 		self.state_fn = state_fn
 		self.reward_fn = reward_fn if (reward_fn is not None) else (lambda env: 0.0)
 		self.done_fn = done_fn if (done_fn is not None) else (lambda env, steps: torch.tensor([agent.collision() for agent in env.agents]))
 		self.info_fn = info_fn if (info_fn is not None) else (lambda env: {})
+		self.update_fn = update_fn
 		self.env = env
 		# Constants
 		self.N_AGENTS = 1
@@ -33,6 +34,7 @@ class MRS(gym.Env):
 		self.AGENT_RADIUS = 0.25
 		self.COMM_RANGE = float('inf')
 		self.RETURN_A = True
+		self.RETURN_EVENTS = True
 		self.ACTION_TYPE = "set_target_vel"
 		self.HEADLESS = False
 		self.MAX_ACTION_MAG = 1.0
@@ -51,9 +53,9 @@ class MRS(gym.Env):
 		self.steps_since_reset = 0
 		self.last_loop_time = time.monotonic()
 		# Simulation
-		BulletSim.setup()
+		self.sim = BulletSim(**kwargs)
 		if isinstance(env, str):
-			self.env = env_generator(self.N_AGENTS, env)
+			self.env = env_generator(envtype=env, N=self.N_AGENTS, sim=self.sim)
 		# Setup
 		self.reset()
 
@@ -62,8 +64,6 @@ class MRS(gym.Env):
 		for name, val in kwargs.items():
 			if name in self.__dict__:
 				self.__dict__[name] = val
-			elif hasattr(BulletSim, name):
-				setattr(BulletSim, name, val)
 
 
 	def calc_Xk(self):
@@ -137,6 +137,7 @@ class MRS(gym.Env):
 		return posi-posj
 
 
+	# Resets the agents (defaults will be used for parameters that aren't given)
 	def reset(self, pos=None, ori=None, vel=None, angvel=None):
 		if pos is None:
 			pos = self.generate_start_pos()
@@ -152,6 +153,11 @@ class MRS(gym.Env):
 		self.steps_since_reset = 0
 
 
+	# Assigns a given state to the agents without "resetting" (the state for parameters that aren't given wont be changed)
+	def set(self, pos=None, ori=None, vel=None, angvel=None):
+		pass
+
+
 	def close(self):
 		pass
 
@@ -162,7 +168,7 @@ class MRS(gym.Env):
 	# waits for a given dt. If dt is not given, it uses the value from the simulator
 	def wait(self, dt=None):
 		if dt is None:
-			dt = BulletSim.DT
+			dt = self.sim.DT
 		diff = time.monotonic() - self.last_loop_time
 		waittime = max(dt-diff, 0)
 		time.sleep(waittime)
@@ -176,7 +182,10 @@ class MRS(gym.Env):
 		if ACTION_TYPE is None:
 			ACTION_TYPE = self.ACTION_TYPE
 		self.env.set_actions(actions, behaviour=ACTION_TYPE)
-		BulletSim.step_sim()
+		self.env.update_controlled()
+		if self.update_fn is not None:
+			self.update_fn(self.env)
+		self.sim.step_sim()
 		## Collect Data ##
 		Xk = self.calc_Xk()
 		if self.RETURN_A:
@@ -187,6 +196,9 @@ class MRS(gym.Env):
 		info = self.info_fn(self.env)
 		if self.RETURN_A:
 			info["A"] = Ak
+		if self.RETURN_EVENTS:
+			info["keyboard_events"] = self.env.get_keyboard_events()
+			info["mouse_events"] = self.env.get_mouse_events()
 		# done: N (bool tensor)
 		done = self.done_fn(self.env, self.steps_since_reset)
 		# time
@@ -194,5 +206,21 @@ class MRS(gym.Env):
 		self.steps_since_reset += 1
 		# return
 		return Xk, reward, done, info
+
+
+	def get_env(self):
+		return self.env
+
+	def get_objects(self):
+		return self.env.objects
+
+	def get_agents(self):
+		return self.env.agents
+
+	def get_controlled(self):
+		return self.env.controlled
+
+	def get_object_dict(self):
+		return self.env.object_dict
 
 		

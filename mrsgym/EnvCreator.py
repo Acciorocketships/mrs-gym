@@ -1,44 +1,47 @@
+from mrsgym.BulletSim import *
 from mrsgym.Environment import *
 from mrsgym.Object import *
+import torch
+import pybullet as p
 
-def env_generator(N=1, envtype='simple'):
-	env = Environment()
+def env_generator(envtype='simple', N=1, sim=DefaultSim()):
+	env = Environment(sim=sim)
 	env.init_agents(N)
 	if envtype == 'simple':
-		ground = Object("plane.urdf", pos=[0,0,0], ori=[0,0,0])
+		ground = Object(uid="plane.urdf", env=env, sim=sim, pos=[0,0,0], ori=[0,0,0])
 		env.add_object(ground)
 	return env
 
 
-def create_box(dim=[1,1,1], pos=[0,0,0], ori=[0,0,0], mass=0, collisions=True):
+def create_box(dim=[1,1,1], pos=[0,0,0], ori=[0,0,0], mass=0, collisions=True, sim=DefaultSim()):
 	if isinstance(dim, torch.Tensor):
 		dim = dim.tolist()
 	if collisions:
-		uid = p.createCollisionShape(p.GEOM_BOX, halfExtents=dim)
+		uid = p.createCollisionShape(p.GEOM_BOX, halfExtents=dim, physicsClientId=sim.id)
 		if mass != 0:
-			uid = p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=uid)
+			uid = p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=uid, physicsClientId=sim.id)
 	else:
-		uid = p.createVisualShape(p.GEOM_BOX, halfExtents=dim)
+		uid = p.createVisualShape(p.GEOM_BOX, halfExtents=dim, physicsClientId=sim.id)
 		if mass != 0:
-			uid = p.createMultiBody(baseMass=mass, baseVisualShapeIndex=uid)
-	obj = Object(uid=uid, pos=pos, ori=ori)
+			uid = p.createMultiBody(baseMass=mass, baseVisualShapeIndex=uid, physicsClientId=sim.id)
+	obj = Object(uid=uid, sim=sim, pos=pos, ori=ori)
 	return obj
 
 
-def create_sphere(radius=0.5, pos=[0,0,0], mass=0, collisions=True):
+def create_sphere(radius=0.5, pos=[0,0,0], mass=0, collisions=True, sim=DefaultSim()):
 	if collisions:
-		uid = p.createCollisionShape(p.GEOM_SPHERE, radius=radius)
+		uid = p.createCollisionShape(p.GEOM_SPHERE, radius=radius, physicsClientId=sim.id)
 		if mass != 0:
-			uid = p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=uid)
+			uid = p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=uid, physicsClientId=sim.id)
 	else:
-		uid = p.createVisualShape(p.GEOM_SPHERE, radius=radius)
+		uid = p.createVisualShape(p.GEOM_SPHERE, radius=radius, physicsClientId=sim.id)
 		if mass != 0:
-			uid = p.createMultiBody(baseMass=mass, baseVisualShapeIndex=uid)
-	obj = Object(uid=uid, pos=pos)
+			uid = p.createMultiBody(baseMass=mass, baseVisualShapeIndex=uid, physicsClientId=sim.id)
+	obj = Object(uid=uid, sim=sim, pos=pos)
 	return obj
 
 
-def load_urdf(path, pos=[0,0,0], ori=[0,0,0], inpackage=True):
+def load_urdf(path, pos=[0,0,0], ori=[0,0,0], inpackage=True, sim=DefaultSim()):
 	# position
 	if isinstance(pos, torch.Tensor):
 		pos = pos.tolist()
@@ -58,5 +61,5 @@ def load_urdf(path, pos=[0,0,0], ori=[0,0,0], inpackage=True):
 		directory = os.path.join(os.path.dirname(mrsgym.__file__), 'models')
 		path = os.path.join(directory, path)
 	# load
-	model = p.loadURDF(path, pos, ori)
+	model = p.loadURDF(fileName=path, basePosition=pos, baseOrientation=ori, physicsClientId=sim.id)
 	return model

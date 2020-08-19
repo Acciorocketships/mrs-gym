@@ -8,9 +8,10 @@ from mrsgym.Util import wrap_angle
 
 class QuadControl:
 
-	def __init__(self, attributes, **kwargs):
+	def __init__(self, attributes, sim=DefaultSim(), **kwargs):
 		# Model Parameters
 		self.attributes = attributes
+		self.sim = sim
 		# Controller Paremeters
 		self.MAX_ROLL_PITCH = np.pi/6
 
@@ -69,9 +70,9 @@ class QuadControl:
 		if not hasattr(self, 'integral_pos_e'):
 			self.integral_pos_e = np.zeros(3)
 		d_pos_e = target_vel - vel
-		self.integral_pos_e = self.integral_pos_e + pos_e*BulletSim.DT
+		self.integral_pos_e = self.integral_pos_e + pos_e*self.sim.DT
 		P_COEFF_FOR = np.array([.4, .4, .6]); I_COEFF_FOR = np.array([.0001, .0001, .0001]); D_COEFF_FOR = np.array([1.0, 1.0, 1.0])
-		target_force = np.array([0,0,BulletSim.GRAVITY*self.attributes["MASS"]]) + np.multiply(P_COEFF_FOR,pos_e) + np.multiply(I_COEFF_FOR,self.integral_pos_e) + np.multiply(D_COEFF_FOR,d_pos_e)
+		target_force = np.array([0,0,self.sim.GRAVITY*self.attributes["MASS"]]) + np.multiply(P_COEFF_FOR,pos_e) + np.multiply(I_COEFF_FOR,self.integral_pos_e) + np.multiply(D_COEFF_FOR,d_pos_e)
 		if target_ori is None:
 			target_ori = np.zeros(3)
 		return self.force_control(ori=ori, angvel=angvel, target_force=target_force, target_ori=target_ori)
@@ -86,11 +87,11 @@ class QuadControl:
 			self.d_vel_e = np.zeros(3)
 		if not hasattr(self, 'integral_vel_e'):
 			self.integral_vel_e = np.zeros(3)
-		self.d_vel_e = ((vel_e - self.last_vel_e) / BulletSim.DT) * 0.5 + self.d_vel_e * 0.5
+		self.d_vel_e = ((vel_e - self.last_vel_e) / self.sim.DT) * 0.5 + self.d_vel_e * 0.5
 		self.last_vel_e = vel_e
-		self.integral_vel_e = self.integral_vel_e + vel_e*BulletSim.DT
+		self.integral_vel_e = self.integral_vel_e + vel_e*self.sim.DT
 		P_COEFF_FOR = np.array([2.0, 2.0, 2.0]); I_COEFF_FOR = np.array([.001, .001, .001]); D_COEFF_FOR = np.array([0.3, 0.3, 0.3])
-		target_force = np.array([0,0,BulletSim.GRAVITY*self.attributes["MASS"]]) + np.multiply(P_COEFF_FOR,vel_e) + np.multiply(I_COEFF_FOR,self.integral_vel_e) + np.multiply(D_COEFF_FOR,self.d_vel_e)
+		target_force = np.array([0,0,self.sim.GRAVITY*self.attributes["MASS"]]) + np.multiply(P_COEFF_FOR,vel_e) + np.multiply(I_COEFF_FOR,self.integral_vel_e) + np.multiply(D_COEFF_FOR,self.d_vel_e)
 		if target_ori is None:
 			target_ori = wrap_angle(np.array([0, 0, np.arctan2(vel[0], vel[1])]), margin=np.pi/2)
 		# print("P: %s, I: %s, D: %s" % (vel_e, self.integral_vel_e, d_vel_e))
@@ -118,7 +119,7 @@ class QuadControl:
 		target_ori[1] = np.clip(target_ori[1], -self.MAX_ROLL_PITCH, self.MAX_ROLL_PITCH)
 		rpy_e = wrap_angle(target_ori - ori)
 		d_rpy_e = -angvel
-		self.integral_rpy_e = self.integral_rpy_e + rpy_e*BulletSim.DT
+		self.integral_rpy_e = self.integral_rpy_e + rpy_e*self.sim.DT
 		P_COEFF_TOR = np.array([.3, .3, .1]); I_COEFF_TOR = np.array([.0001, .0001, .0001]); D_COEFF_TOR = np.array([.3, .3, .5])
 		target_torques = np.multiply(P_COEFF_TOR,rpy_e) + np.multiply(I_COEFF_TOR,self.integral_rpy_e) + np.multiply(D_COEFF_TOR,d_rpy_e)
 		target_force = np.dot(cur_rotation, target_force)

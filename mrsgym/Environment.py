@@ -1,43 +1,70 @@
+from mrsgym.BulletSim import *
 from mrsgym.Quadcopter import *
 from mrsgym.Object import *
+import pybullet as p
 import torch
 
 class Environment:
 
-	def __init__(self):
+	def __init__(self, sim=DefaultSim()):
+		self.sim = sim
 		self.agents = []
 		self.objects = []
+		self.controlled = []
+		self.object_dict = {} # dict of uid to all types of objects in env (agents, objects, controlled)
 
 
 	def init_agents(self, N):
-		self.agents = [Quadcopter() for _ in range(N)]
+		for _ in range(N):
+			self.add_agent(Quadcopter(env=self, sim=self.sim))
 
 
 	def add_object(self, obj):
 		self.objects.append(obj)
+		self.object_dict[obj.uid] = obj
 
 
 	def remove_object(self, obj):
 		if isinstance(obj, int):
+			uid = self.objects[obj].uid
 			del self.objects[obj]
 		elif isinstance(obj, Object):
+			uid = obj.uid
 			idx = self.objects.index(obj)
 			del self.objects[idx]
+		del self.object_dict[uid]
 
 
-	def add_agent(self, agent=None):
-		if agent is None:
-			agent = Quadcopter()
+	def add_controlled(self, obj):
+		self.controlled.append(obj)
+		self.object_dict[obj.uid] = obj
+
+
+	def remove_controlled(self, obj):
+		if isinstance(obj, int):
+			uid = self.objects[obj].uid
+			del self.controlled[obj]
+		elif isinstance(obj, ControlledObject):
+			uid = obj.uid
+			idx = self.controlled.index(obj)
+			del self.controlled[idx]
+		del self.object_dict[uid]
+
+
+	def add_agent(self, agent):
 		self.agents.append(agent)
-		return agent
+		self.object_dict[agent.uid] = agent
 
 
 	def remove_agent(self, agent):
 		if isinstance(agent, int):
+			uid = self.objects[obj].uid
 			del self.agents[agent]
 		elif isinstance(obj, Quadcopter):
+			uid = obj.uid
 			idx = self.agents.index(agent)
 			del self.agents[idx]
+		del self.object_dict[uid]
 
 
 	def get_X(self, state_fn):
@@ -51,27 +78,81 @@ class Environment:
 			getattr(agent, behaviour)(actions[i,:])
 
 
-	def get_done(self, *args, **kwargs):
-		return torch.tensor([agent.collision() for agent in self.agents])
-
-
 	def set_state(self, pos, ori, vel, angvel):
 		for i, agent in enumerate(self.agents):
 			agent.set_state(pos=pos[i,:], ori=ori[i,:], vel=vel[i,:], angvel=angvel[i,:])
 
+
+	def update_controlled(self):
+		for controlled_obj in self.controlled:
+			controlled_obj.update(self)
+
+
 	def get_pos(self):
 		return torch.stack([agent.get_pos() for agent in self.agents], dim=0)
+
 
 	def get_vel(self):
 		return torch.stack([agent.get_vel() for agent in self.agents], dim=0)
 
+
 	def get_ori(self):
 		return torch.stack([agent.get_ori() for agent in self.agents], dim=0)
+
 
 	def get_angvel(self):
 		return torch.stack([agent.get_angvel() for agent in self.agents], dim=0)
 
 
-# add/read debug parameter, add debug text
+	def set_collisions(obj1, obj2, collisions=False):
+		p.setCollisionFilterPair(bodyUniqueIdA=obj1.uid, bodyUniqueIdB=obj2.uid, linkIndexA=-1, linkIndexB=-1, enableCollision=(1 if collisions else 0), physicsClientId=self.sim.id)
 
-# enable/disable collisions (single and pairwise)
+
+	def get_keyboard_events(self):
+		events = p.getKeyboardEvents(physicsClientId=self.id)
+		keys = {}
+		for keycode, valcode in events.items():
+			if valcode == 3:
+				val = 1
+			elif valcode == 0:
+				val = 0
+			elif valcode == 4:
+				val = -1
+			else:
+				val = None
+			key = chr(keycode)
+			keys[key] = val
+		return keys
+
+
+	def get_mouse_events(self):
+		events = p.getMouseEvents(physicsClientId=self.sim.id)
+		for event in events:
+			if event[4] == 3:
+				_, x, y, _, _ = event
+				camera_params = p.getDebugVisualizerCamera(physicsClientId=self.sim.id)
+				width = camera_params[0]
+				height = camera_params[1]
+				aspect = width/height
+				pos_view = torch.tensor([1.0, 1.0-(x/width)*2, 1.0-(y/height)*2])
+				camera_forward = torch.tensor(camera_params[5])
+				camera_left = -torch.tensor(camera_params[6]); camera_left /= camera_left.norm(); camera_left *= aspect
+				camera_up = torch.tensor(camera_params[7]); camera_up /= camera_up.norm()
+				R = torch.stack([camera_forward, camera_left, camera_up], dim=1)
+				camera_target = torch.tensor(camera_params[-1])
+				target_dist = camera_params[-2]
+				camera_pos_world = camera_target - target_dist * camera_forward
+				pos_world = R @ pos_view + camera_pos_world
+				vec = pos_world - camera_pos_world; vec = vec / vec.norm()
+				ray = p.rayTest(rayFromPosition=camera_pos_world.tolist(), rayToPosition=(10.0*vec+camera_pos_world).tolist(), physicsClientId=self.sim.id)
+				hit_pos = torch.tensor(ray[0][3])
+				results = {}
+				results['camera_pos'] = camera_pos_world
+				results['target_pos'] = torch.tensor(ray[0][3])
+				results['target_obj'] = self.object_dict[ray[0][0]]
+				results['target_normal'] = torch.tensor(ray[0][4])
+				return results
+		return {}
+
+
+
