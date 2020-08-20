@@ -109,6 +109,24 @@ class Environment:
 		p.setCollisionFilterPair(bodyUniqueIdA=obj1.uid, bodyUniqueIdB=obj2.uid, linkIndexA=-1, linkIndexB=-1, enableCollision=(1 if collisions else 0), physicsClientId=self.sim.id)
 
 
+	def get_image(self, pos, forward, up=None, fov=90., aspect=4/3, height=720):
+		if not isinstance(pos, torch.Tensor):
+			pos = torch.tensor(pos)
+		if not isinstance(forward, torch.Tensor):
+			forward = torch.tensor(forward)
+		if not isinstance(up, torch.Tensor) and up is not None:
+			up = torch.tensor(up)
+		if up is None:
+			left = torch.cross(torch.tensor([0.,0.,1.]), forward)
+			up = torch.cross(forward, left)
+		view_mat = p.computeViewMatrix(cameraEyePosition=pos.tolist(), cameraTargetPosition=forward.tolist(), cameraUpVector=up.tolist(), physicsClientId=self.sim.id)
+		NEAR_PLANE = 0.01
+		FAR_PLANE = 1000.0
+		proj_mat = p.computeProjectionMatrixFOV(fov=fov, aspect=aspect, nearVal=NEAR_PLANE, farVal=FAR_PLANE, physicsClientId=self.sim.id)
+		img = p.getCameraImage(width=int(aspect * height), height=height, viewMatrix=view_mat, projectionMatrix=proj_mat, physicsClientId=self.sim.id)
+		return img
+
+
 	def get_keyboard_events(self):
 		events = p.getKeyboardEvents(physicsClientId=self.sim.id)
 		keys = {}
@@ -133,9 +151,9 @@ class Environment:
 				width = camera_params[0]
 				height = camera_params[1]
 				aspect = width/height
-				pos_view = torch.tensor([1.0, 1.0-(x/width)*2, 1.0-(y/height)*2])
+				pos_view = torch.tensor([1.0, aspect*(1.0-(x/width)*2), 1.0-(y/height)*2])
 				camera_forward = torch.tensor(camera_params[5])
-				camera_left = -torch.tensor(camera_params[6]); camera_left /= camera_left.norm(); camera_left *= aspect
+				camera_left = -torch.tensor(camera_params[6]); camera_left /= camera_left.norm()
 				camera_up = torch.tensor(camera_params[7]); camera_up /= camera_up.norm()
 				R = torch.stack([camera_forward, camera_left, camera_up], dim=1)
 				camera_target = torch.tensor(camera_params[-1])

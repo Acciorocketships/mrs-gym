@@ -19,13 +19,6 @@ class MRS(gym.Env):
 	# info_fn:: input: Environment; output: dict
 	def __init__(self, state_fn, reward_fn=None, done_fn=None, info_fn=None, update_fn=None, env='simple', **kwargs):
 		super(MRS, self).__init__()
-		# Inputs
-		self.state_fn = state_fn
-		self.reward_fn = reward_fn if (reward_fn is not None) else (lambda env: 0.0)
-		self.done_fn = done_fn if (done_fn is not None) else (lambda env, steps: any([agent.collision() for agent in env.agents]))
-		self.info_fn = info_fn if (info_fn is not None) else (lambda env: {})
-		self.update_fn = update_fn
-		self.env = env
 		# Constants
 		self.N_AGENTS = 1
 		self.K_HOPS = 0
@@ -37,8 +30,15 @@ class MRS(gym.Env):
 		self.RETURN_EVENTS = True
 		self.ACTION_TYPE = "set_target_vel"
 		self.HEADLESS = False
-		self.MAX_ACTION_MAG = 1.0
+		self.MAX_TIMESTEPS = 1000
 		self.set_constants(kwargs)
+		# Inputs
+		self.state_fn = state_fn
+		self.reward_fn = reward_fn if (reward_fn is not None) else (lambda env: 0.0)
+		self.done_fn = done_fn if (done_fn is not None) else (lambda env, steps: steps >= self.MAX_TIMESTEPS)
+		self.info_fn = info_fn if (info_fn is not None) else (lambda env: {})
+		self.update_fn = update_fn
+		self.env = env
 		# Constants that depend on other constants
 		self.observation_space = Box(np.zeros((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1)), np.ones((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1)), dtype=np.float64)
 		self.action_space = Box(np.zeros((self.N_AGENTS,self.ACTION_DIM)), np.ones((self.N_AGENTS,self.ACTION_DIM)), dtype=np.float64)

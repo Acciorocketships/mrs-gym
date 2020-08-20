@@ -2,6 +2,7 @@ import pybullet as p
 from scipy.spatial.transform import Rotation as R
 import mrsgym
 import torch
+import numpy as np
 import os
 
 class BulletSim:
@@ -35,6 +36,19 @@ class BulletSim:
 	
 	def step_sim(self):
 		p.stepSimulation(physicsClientId=self.id)
+
+
+	def set_camera(self, pos, target=torch.zeros(3)):
+		if not isinstance(pos, torch.Tensor):
+			pos = torch.tensor(pos)
+		if not isinstance(target, torch.Tensor):
+			target = torch.tensor(target)
+		disp = target - pos
+		dist = disp.norm()
+		yaw = np.arctan2(-disp[0],disp[1]) * 180/np.pi
+		pitch = np.arctan2(disp[2],np.sqrt(disp[0]**2+disp[1]**2)) * 180/np.pi
+		p.resetDebugVisualizerCamera(cameraDistance=dist, cameraYaw=yaw, cameraPitch=pitch, cameraTargetPosition=target.tolist(), physicsClientId=self.id)
+
 
 
 

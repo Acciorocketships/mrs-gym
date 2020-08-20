@@ -127,34 +127,48 @@ class Object:
 		pass
 
 
-	def raycast(self, offset=torch.zeros(3), directions=torch.tensor([10.,0.,0.])):
+	def raycast(self, offset=torch.zeros(3), directions=torch.tensor([100.,0.,0.]), body=True):
 		if len(directions.shape)==1:
 			directions = directions.unsqueeze(0)
 		if len(offset.shape)==1:
 			offset = offset.expand(directions.shape[0])
-		rays = p.rayTestBatch(rayFromPositions=start.tolist(), rayToPositions=directions.tolist(), parentObjectUniqueId=self.uid, physicsClientId=self.sim.id)
+		R = self.get_ori(mat=True)
+		pos = self.get_pos()
+		if body:
+			offset = R @ offset
+			directions = (R @ directions.T).T
+		start = offset + pos
+		start = start.expand(directions.shape[0], -1)
+		end = directions + start
+		rays = p.rayTestBatch(rayFromPositions=start.tolist(), rayToPositions=end.tolist(), parentObjectUniqueId=self.uid, physicsClientId=self.sim.id)
 		ray_dict = {}
 		ray_dict["object"] = [self.env.object_dict.get(ray[0], None) for ray in rays]
 		ray_dict["pos_world"] = torch.stack([torch.tensor(ray[3]) for ray in rays])
-		R = self.get_ori(mat=True)
-		pos = self.get_pos()
 		ray_dict["pos"] = (R.T @ ray_dict['pos_world'].T - R.T @ pos).T
 		ray_dict["dist"] = (ray_dict['pos'] - offset).norm(dim=-1)
 		return ray_dict
 
 
-		# R = self.get_ori(mat=True)
-		# pos = self.get_pos()
-		# start = R @ offset + pos
-		# start = start.expand(directions.shape[0], -1)
-		# end = (R @ directions.T + pos).T
-		# rays = p.rayTestBatch(rayFromPositions=start.tolist(), rayToPositions=directions.tolist())
+	def get_image(self, forward=torch.tensor([1.,0.,0.]), up=torch.tensor([0.,0.,1.]), offset=torch.zeros(3), body=True, fov=90., aspect=4/3, height=720):
+		if not isinstance(forward, torch.Tensor):
+			forward = torch.tensor(forward)
+		if not isinstance(up, torch.Tensor) and up is not None:
+			up = torch.tensor(up)
+		if not isinstance(offset, torch.Tensor):
+			offset = torch.tensor(offset)
+		if body:
+			R = self.get_ori(mat=True)
+			forward = R @ forward
+			up = R @ up
+			offset = R @ offset
+		pos = self.get_pos() + offset
+		view_mat = p.computeViewMatrix(cameraEyePosition=pos.tolist(), cameraTargetPosition=forward.tolist(), cameraUpVector=up.tolist(), physicsClientId=self.sim.id)
+		NEAR_PLANE = 0.01
+		FAR_PLANE = 1000.0
+		proj_mat = p.computeProjectionMatrixFOV(fov=fov, aspect=aspect, nearVal=NEAR_PLANE, farVal=FAR_PLANE, physicsClientId=self.sim.id)
+		img = p.getCameraImage(width=int(aspect * height), height=height, viewMatrix=view_mat, projectionMatrix=proj_mat, physicsClientId=self.sim.id)
+		return img
 
-
-
-
-	def get_image(self):
-		pass
 
 
 
