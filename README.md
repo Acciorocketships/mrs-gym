@@ -40,17 +40,24 @@ if __name__ == '__main__':
 	Description: creates the MRS gym environment
 	
 	Arguments:
-	- state_fn: (function) [required] specifies the content of the obs output of mrsenv.step(actions). Takes an instance of the Quadcopter class as an input, and produces a one-dimensional (STATE_SIZE) tensor as an output
-	- reward_fn: (function) specifies the content of the reward output of mrsenv.step(actions). Takes an instance of the Environment class as an input, and produces an output of any type (default is 0.0)
-	- info_fn: (function) specifies the content of the info output of mrsenv.step(actions). Takes an instance of the Environment class as an input, and produces a dict as an output
+	- state_fn: (function) [required] specifies the content of the obs output of mrsenv.step(actions). Takes an agent (Quadcopter) class as an input, and produces a one-dimensional (STATE_SIZE) tensor as an output.
+	- reward_fn: (function) specifies the content of the reward output of mrsenv.step(actions). Takes the env (Environment) as an input, and produces an output of any type (default is 0.0).
+	- done_fn: (function) specifies the termination conditions. Takes the env (Environment) and the number of steps since the last reset (int) as an input, and produces a bool as the output. The default behaviour is to return True when any of the agents collide with something.
+	- info_fn: (function) specifies the content of the info output of mrsenv.step(actions). Takes an instance of the env (Environment) as an input, and produces a dict as an output.
+	- update_fn: (function) This function allows the user to specify any extra behaviour they wish to run every time the simulation is stepped. For example, the update_fn could add aerodynamics disturbances to the objects in the environment. Takes the env (Environment) as an input.
 	- env: (Environment OR str) defines the environment, which contains all objects and agents. Choose from:
 		1. Environment: uses a user-defined environment. See the Environment class for how to construct it manually
 		2. "simple": creates a world with N_AGENTS agents and a plane at z=0. This is the default
-	- N_AGENTS: (int) sets the number of agents in the environment
-	- K_HOPS: (int) sets the number of consecutive time steps to return in the observation, which is of size (N_AGENTS x STATE_SIZE x K_HOPS+1)
-	- AGENT_RADIUS: (float) used purely for start position generation, this prevents agents from overlapping
-	- RETURN_A: (bool) specifies whether or not to compute the adjacency matrix. It is returned in the info dict under key "A"
-	- COMM_RANGE: (float) sets the communication range for use when computing the adjacency matrix
+	- N_AGENTS: (int) sets the number of agents in the environment.
+	- K_HOPS: (int) sets the number of consecutive time steps to return in the observation, which is of size (N_AGENTS x STATE_SIZE x K_HOPS+1).
+	- AGENT_RADIUS: (float) used purely for start position generation, this prevents agents from overlapping.
+	- RETURN_A: (bool) specifies whether or not to compute the adjacency matrix. It is returned in the info dict under key "A".
+	- RETURN_EVENTS: (bool) specifies whether or note to include "keyboard_events" and "mouse_events" in the info dict. "keyboard_events" is a dict which maps a key (str) to a value (1 for pressed, 0 for held, -1 for released). "mouse_events" is not None when there is a mouse click, and it returns a dict of:
+		1. "camera_pos": ((3) tensor) the world coordinates of the camera
+		2. "target_pos" ((3) tensor) the world coordinates of the location that was clicked
+		3. "target_normal" ((3) tensor) the normal of the surface that was clicked.
+		4. "target_obj" (Object) the object that was clicked
+	- COMM_RANGE: (float) sets the communication range for use when computing the adjacency matrix.
 	- ACTION_TYPE: (str) specifies how to interpret the given action. Choose from:
 		1. "set_target_vel": PID control with given target velocity (m/s) [vx, vy, vz]
 		2. "set_target_pos": PID control with given target position (m) [x, y, z]
@@ -101,8 +108,8 @@ if __name__ == '__main__':
 	
 	Outputs: (obs, reward, done, info)
 	- obs: ((N_AGENTS x STATE_SIZE x K_HOPS+1) tensor) a matrix of the states returned by state_fn(agent) for all agents
-	- reward: (float) the reward calculated by reward_fn(self.env). It can have any type, but the default is 0.0 if a reward_fn is not given.
-	- done: ((N_AGENTS) bool tensor) an array indicating which agents are experiencing a collision. A custom done function can be used by overriding mrsenv.env.get_done()
-	- info: (dict) a dict of extra information that is calculated by info_fn(self.env). The adjacency matrix (N_AGENTS x N_AGENTS x K_HOPS+1) is also stored in info["A"] if RETURN_A is true
+	- reward: (float) the reward calculated by the given reward_fn(env). It can have any type, but the default is 0.0 if a reward_fn is not given.
+	- done: (bool) the termination conditions calculated by the given done_fn(env, steps_since_reset). By default, it is True when any of the agents experience a collision.
+	- info: (dict) a dict of extra information that is calculated by info_fn(env). The adjacency matrix (N_AGENTS x N_AGENTS x K_HOPS+1) is also stored in info["A"] if RETURN_A is true
 		
 		
