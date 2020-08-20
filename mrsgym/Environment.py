@@ -1,6 +1,7 @@
 from mrsgym.BulletSim import *
 from mrsgym.Quadcopter import *
 from mrsgym.Object import *
+from mrsgym.Util import *
 import pybullet as p
 import torch
 
@@ -109,18 +110,16 @@ class Environment:
 
 
 	def get_keyboard_events(self):
-		events = p.getKeyboardEvents(physicsClientId=self.id)
+		events = p.getKeyboardEvents(physicsClientId=self.sim.id)
 		keys = {}
 		for keycode, valcode in events.items():
 			if valcode == 3:
 				val = 1
-			elif valcode == 0:
+			elif valcode == 1:
 				val = 0
 			elif valcode == 4:
 				val = -1
-			else:
-				val = None
-			key = chr(keycode)
+			key = Key(keycode)
 			keys[key] = val
 		return keys
 
@@ -152,7 +151,6 @@ class Environment:
 				results['target_obj'] = self.object_dict[ray[0][0]]
 				results['target_normal'] = torch.tensor(ray[0][4])
 				return results
-		return {}
 
 
 

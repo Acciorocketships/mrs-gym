@@ -13,16 +13,16 @@ class MRS(gym.Env):
 
 	metadata = {'render.modes': ['headless', 'bullet']}
 
-	# state_fn:: input: Quadcopter, output: size D tensor
-	# reward_fn:: input: Environment, output: scalar
-	# done_fn:: input: Environment, steps_since_reset, output: bool
-	# info_fn:: input: Environment, output: dict
+	# state_fn:: input: Quadcopter; output: size D tensor
+	# reward_fn:: input: Environment; output: scalar
+	# done_fn:: input: Environment, steps_since_reset; output: bool
+	# info_fn:: input: Environment; output: dict
 	def __init__(self, state_fn, reward_fn=None, done_fn=None, info_fn=None, update_fn=None, env='simple', **kwargs):
 		super(MRS, self).__init__()
 		# Inputs
 		self.state_fn = state_fn
 		self.reward_fn = reward_fn if (reward_fn is not None) else (lambda env: 0.0)
-		self.done_fn = done_fn if (done_fn is not None) else (lambda env, steps: torch.tensor([agent.collision() for agent in env.agents]))
+		self.done_fn = done_fn if (done_fn is not None) else (lambda env, steps: any([agent.collision() for agent in env.agents]))
 		self.info_fn = info_fn if (info_fn is not None) else (lambda env: {})
 		self.update_fn = update_fn
 		self.env = env
@@ -177,11 +177,12 @@ class MRS(gym.Env):
 	def step(self, actions, ACTION_TYPE=None):
 		## Set Action and Step Environment ##
 		# actions: N x ACTION_DIM
-		if not isinstance(actions, torch.Tensor):
-			actions = torch.tensor(actions)
-		if ACTION_TYPE is None:
-			ACTION_TYPE = self.ACTION_TYPE
-		self.env.set_actions(actions, behaviour=ACTION_TYPE)
+		if actions is not None:
+			if not isinstance(actions, torch.Tensor):
+				actions = torch.tensor(actions)
+			if ACTION_TYPE is None:
+				ACTION_TYPE = self.ACTION_TYPE
+			self.env.set_actions(actions, behaviour=ACTION_TYPE)
 		self.env.update_controlled()
 		if self.update_fn is not None:
 			self.update_fn(self.env)
