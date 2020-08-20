@@ -44,7 +44,7 @@ if __name__ == '__main__':
 	- reward_fn: (function) specifies the content of the reward output of mrsenv.step(actions). Takes the env (Environment) as an input, and produces an output of any type (default is 0.0).
 	- done_fn: (function) specifies the termination conditions. Takes the env (Environment) and the number of steps since the last reset (int) as an input, and produces a bool as the output. The default behaviour is to return True when any of the agents collide with something.
 	- info_fn: (function) specifies the content of the info output of mrsenv.step(actions). Takes an instance of the env (Environment) as an input, and produces a dict as an output.
-	- update_fn: (function) This function allows the user to specify any extra behaviour they wish to run every time the simulation is stepped. For example, the update_fn could add aerodynamics disturbances to the objects in the environment. Takes the env (Environment) as an input.
+	- update_fn: (function) This function allows the user to specify any extra behaviour they wish to run every time the simulation is stepped. The update_fn could be used to add aerodynamics disturbances to the objects in the environment, change the position and orientation of the camera view, add/remove objects or agents, etc. Takes the env (Environment) as an input.
 	- env: (Environment OR str) defines the environment, which contains all objects and agents. Choose from:
 		1. Environment: uses a user-defined environment. See the Environment class for how to construct it manually
 		2. "simple": creates a world with N_AGENTS agents and a plane at z=0. This is the default
