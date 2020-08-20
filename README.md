@@ -48,11 +48,16 @@ if __name__ == '__main__':
 	- env: (Environment OR str) defines the environment, which contains all objects and agents. Choose from:
 		1. Environment: uses a user-defined environment. See the Environment class for how to construct it manually
 		2. "simple": creates a world with N_AGENTS agents and a plane at z=0. This is the default
-	- N_AGENTS: (int) sets the number of agents in the environment
-	- K_HOPS: (int) sets the number of consecutive time steps to return in the observation, which is of size (N_AGENTS x STATE_SIZE x K_HOPS+1)
-	- AGENT_RADIUS: (float) used purely for start position generation, this prevents agents from overlapping
-	- RETURN_A: (bool) specifies whether or not to compute the adjacency matrix. It is returned in the info dict under key "A"
-	- COMM_RANGE: (float) sets the communication range for use when computing the adjacency matrix
+	- N_AGENTS: (int) sets the number of agents in the environment.
+	- K_HOPS: (int) sets the number of consecutive time steps to return in the observation, which is of size (N_AGENTS x STATE_SIZE x K_HOPS+1).
+	- AGENT_RADIUS: (float) used purely for start position generation, this prevents agents from overlapping.
+	- RETURN_A: (bool) specifies whether or not to compute the adjacency matrix. It is returned in the info dict under key "A".
+	- RETURN_EVENTS: (bool) specifies whether or note to include "keyboard_events" and "mouse_events" in the info dict. "keyboard_events" is a dict which maps a key (str) to a value (1 for pressed, 0 for held, -1 for released). "mouse_events" is not None when there is a mouse click, and it returns a dict of:
+		1. "camera_pos": ((3) tensor) the world coordinates of the camera
+		2. "target_pos" ((3) tensor) the world coordinates of the location that was clicked
+		3. "target_normal" ((3) tensor) the normal of the surface that was clicked.
+		4. "target_obj" (Object) the object that was clicked
+	- COMM_RANGE: (float) sets the communication range for use when computing the adjacency matrix.
 	- ACTION_TYPE: (str) specifies how to interpret the given action. Choose from:
 		1. "set_target_vel": PID control with given target velocity (m/s) [vx, vy, vz]
 		2. "set_target_pos": PID control with given target position (m) [x, y, z]
