@@ -13,31 +13,27 @@ def env_generator(envtype='simple', N=1, sim=DefaultSim()):
 	return env
 
 
-def create_box(dim=[1,1,1], pos=[0,0,0], ori=[0,0,0], mass=0, collisions=True, sim=DefaultSim()):
+def create_box(dim=[1,1,1], pos=[0,0,0], ori=[0,0,0], mass=0, collisions=True, env=None, sim=DefaultSim()):
 	if isinstance(dim, torch.Tensor):
 		dim = dim.tolist()
 	if collisions:
 		uid = p.createCollisionShape(p.GEOM_BOX, halfExtents=dim, physicsClientId=sim.id)
-		if mass != 0:
-			uid = p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=uid, physicsClientId=sim.id)
+		uid = p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=uid, physicsClientId=sim.id)
 	else:
 		uid = p.createVisualShape(p.GEOM_BOX, halfExtents=dim, physicsClientId=sim.id)
-		if mass != 0:
-			uid = p.createMultiBody(baseMass=mass, baseVisualShapeIndex=uid, physicsClientId=sim.id)
-	obj = Object(uid=uid, sim=sim, pos=pos, ori=ori)
+		uid = p.createMultiBody(baseMass=mass, baseVisualShapeIndex=uid, physicsClientId=sim.id)
+	obj = Object(uid=uid, env=env, sim=sim, pos=pos, ori=ori)
 	return obj
 
 
-def create_sphere(radius=0.5, pos=[0,0,0], mass=0, collisions=True, sim=DefaultSim()):
+def create_sphere(radius=0.5, pos=[0,0,0], mass=0, collisions=True, env=None, sim=DefaultSim()):
 	if collisions:
 		uid = p.createCollisionShape(p.GEOM_SPHERE, radius=radius, physicsClientId=sim.id)
-		if mass != 0:
-			uid = p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=uid, physicsClientId=sim.id)
+		uid = p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=uid, physicsClientId=sim.id)
 	else:
 		uid = p.createVisualShape(p.GEOM_SPHERE, radius=radius, physicsClientId=sim.id)
-		if mass != 0:
-			uid = p.createMultiBody(baseMass=mass, baseVisualShapeIndex=uid, physicsClientId=sim.id)
-	obj = Object(uid=uid, sim=sim, pos=pos)
+		uid = p.createMultiBody(baseMass=mass, baseVisualShapeIndex=uid, physicsClientId=sim.id)
+	obj = Object(uid=uid, env=env, sim=sim, pos=pos)
 	return obj
 
 

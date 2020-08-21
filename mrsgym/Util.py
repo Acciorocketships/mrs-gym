@@ -24,6 +24,26 @@ def randrange(low, high):
 	return x
 
 
+# returns a unit vector representing the direction of the target from the camera position (in world coordinates)
+def pix2world(vpix, hpix, height, aspect, fov, forward, up, pos):
+	if not isinstance(forward, torch.Tensor):
+		forward = torch.tensor(forward)
+	if not isinstance(up, torch.Tensor):
+		up = torch.tensor(up)
+	if not isinstance(pos, torch.Tensor):
+		pos = torch.tensor(pos)
+	width = int(height * aspect)
+	fov_scaler = np.tan(np.pi/180 * fov/2)
+	pos_view = torch.tensor([1.0, fov*aspect*(1.0-(hpix/width)*2), fov*(1.0-(vpix/height)*2)])
+	camera_forward = forward / forward.norm()
+	camera_up = up / up.norm()
+	camera_left = torch.cross(camera_up, camera_forward)
+	R = torch.stack([camera_forward, camera_left, camera_up], dim=1)
+	pos_world = R @ pos_view + pos
+	vec = pos_world - pos; vec = vec / vec.norm()
+	return vec
+
+
 def dict2str(dictionary, spaces=0):
 	string = ""
 	if type(dictionary) == dict:

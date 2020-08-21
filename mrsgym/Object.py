@@ -114,9 +114,8 @@ class Object:
 	def get_dist(self, other, MAX_DIST=float('inf'), body=False):
 		contactObjList = p.getClosestPoints(bodyA=self.uid, bodyB=other.uid, distance=MAX_DIST, physicsClientId=self.sim.id)
 		if len(contactObjList)==0:
-			return {'object':[], 'pos':torch.zeros(0,3), 'normal':torch.zeros(0,3), 'distance':torch.zeros(0)}
+			return {'closest pos self':torch.zeros(0,3), 'closest pos other':torch.zeros(0,3), 'distance':torch.zeros(0)}
 		contacts = {}
-		contacts['object'] = [self.env.object_dict.get(contactObj[2], None) for contactObj in contactObjList]
 		contacts['closest pos self'] = torch.stack([torch.tensor(contactObj[5]) for contactObj in contactObjList], dim=0)
 		contacts['closest pos other'] = torch.stack([torch.tensor(contactObj[6]) for contactObj in contactObjList], dim=0)
 		contacts['distance'] = torch.tensor([contactObj[8] for contactObj in contactObjList])
@@ -132,8 +131,14 @@ class Object:
 		return any(map(lambda dist: dist<0.04, self.get_contact_points()['distance']))
 
 
-	def get_closest_objects(self):
-		pass
+	def get_closest_objects(self, radius):
+		pos = self.get_pos()
+		bboxmin = pos - radius
+		bboxmax = pos + radius
+		ids = p.getOverlappingObjects(aabbMin=bboxmin.tolist(), aabbMax=bboxmax.tolist(), physicsClientId=self.sim.id)
+		objects = [self.env.object_dict.get(uid[0], None) for uid in ids]
+		objects = list(filter(lambda obj: self.get_dist(obj, MAX_DIST=radius)['distance'].shape[0] != 0, objects))
+		return objects
 
 
 	def raycast(self, offset=torch.zeros(3), directions=torch.tensor([1.,0.,0.]), body=True, RANGE=100.0):
@@ -166,7 +171,7 @@ class Object:
 	def get_image(self, forward=torch.tensor([1.,0.,0.]), up=torch.tensor([0.,0.,1.]), offset=torch.zeros(3), body=True, fov=90., aspect=4/3, height=720):
 		if not isinstance(forward, torch.Tensor):
 			forward = torch.tensor(forward)
-		if not isinstance(up, torch.Tensor) and up is not None:
+		if not isinstance(up, torch.Tensor):
 			up = torch.tensor(up)
 		if not isinstance(offset, torch.Tensor):
 			offset = torch.tensor(offset)
@@ -176,12 +181,15 @@ class Object:
 			up = R @ up
 			offset = R @ offset
 		pos = self.get_pos() + offset
-		view_mat = p.computeViewMatrix(cameraEyePosition=pos.tolist(), cameraTargetPosition=forward.tolist(), cameraUpVector=up.tolist(), physicsClientId=self.sim.id)
+		view_mat = p.computeViewMatrix(cameraEyePosition=pos.tolist(), cameraTargetPosition=(pos+forward).tolist(), cameraUpVector=up.tolist(), physicsClientId=self.sim.id)
 		NEAR_PLANE = 0.01
 		FAR_PLANE = 1000.0
 		proj_mat = p.computeProjectionMatrixFOV(fov=fov, aspect=aspect, nearVal=NEAR_PLANE, farVal=FAR_PLANE, physicsClientId=self.sim.id)
-		img = p.getCameraImage(width=int(aspect * height), height=height, viewMatrix=view_mat, projectionMatrix=proj_mat, physicsClientId=self.sim.id)
-		return img
+		_, _, img, depth, mask = p.getCameraImage(width=int(aspect * height), height=height, viewMatrix=view_mat, projectionMatrix=proj_mat, physicsClientId=self.sim.id)
+		img = torch.tensor(img)
+		depth = FAR_PLANE * NEAR_PLANE / (FAR_PLANE - (FAR_PLANE-NEAR_PLANE)*torch.tensor(depth))
+		mask = torch.tensor(mask)
+		return {"img": img, "depth": depth, "mask": mask}
 
 
 

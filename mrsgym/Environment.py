@@ -137,6 +137,8 @@ class Environment:
 				val = 0
 			elif valcode == 4:
 				val = -1
+			else:
+				continue
 			key = Key(keycode)
 			keys[key] = val
 		return keys

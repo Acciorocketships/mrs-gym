@@ -50,7 +50,18 @@ class BulletSim:
 		p.resetDebugVisualizerCamera(cameraDistance=dist, cameraYaw=yaw, cameraPitch=pitch, cameraTargetPosition=target.tolist(), physicsClientId=self.id)
 
 
-
+	def add_line(start, end, name="line", width=0.1, lifetime=0., colour=torch.tensor([1.,0.,0.])):
+		if not isinstance(start, torch.Tensor):
+			start = torch.tensor(start)
+		if not isinstance(end, torch.Tensor):
+			end = torch.tensor(end)
+		if not isinstance(colour, torch.Tensor):
+			colour = torch.tensor(colour)
+		if not hasattr(self, "line_names"):
+			self.line_names = {}
+		uid = self.line_names.get(name, -1)
+		new_uid = p.addUserDebugLine(lineFromXYZ=start.tolist(), lineToXYZ=end.tolist(), lineColorRGB=colour.tolist(), lineWidth=width, lifeTime=lifetime, replaceItemUniqueId=uid, physicsClientId=self.id)
+		self.line_names[name] = new_uid
 
 
 class DefaultSim:

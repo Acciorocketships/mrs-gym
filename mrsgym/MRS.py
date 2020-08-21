@@ -38,7 +38,13 @@ class MRS(gym.Env):
 		self.done_fn = done_fn if (done_fn is not None) else (lambda env, steps: steps >= self.MAX_TIMESTEPS)
 		self.info_fn = info_fn if (info_fn is not None) else (lambda env: {})
 		self.update_fn = update_fn
-		self.env = env
+		if isinstance(env, Environment):
+			self.N_AGENTS = len(env.agents)
+			self.env = env
+			self.sim = self.env.sim
+		elif isinstance(env, str):
+			self.sim = BulletSim(**kwargs)
+			self.env = env_generator(envtype=env, N=self.N_AGENTS, sim=self.sim)
 		# Constants that depend on other constants
 		self.observation_space = Box(np.zeros((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1)), np.ones((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1)), dtype=np.float64)
 		self.action_space = Box(np.zeros((self.N_AGENTS,self.ACTION_DIM)), np.ones((self.N_AGENTS,self.ACTION_DIM)), dtype=np.float64)
@@ -52,10 +58,6 @@ class MRS(gym.Env):
 		self.A = deque([])
 		self.steps_since_reset = 0
 		self.last_loop_time = time.monotonic()
-		# Simulation
-		self.sim = BulletSim(**kwargs)
-		if isinstance(env, str):
-			self.env = env_generator(envtype=env, N=self.N_AGENTS, sim=self.sim)
 		# Setup
 		self.reset()
 
