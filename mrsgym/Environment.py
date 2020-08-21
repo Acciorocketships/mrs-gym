@@ -161,12 +161,12 @@ class Environment:
 				camera_pos_world = camera_target - target_dist * camera_forward
 				pos_world = R @ pos_view + camera_pos_world
 				vec = pos_world - camera_pos_world; vec = vec / vec.norm()
-				ray = p.rayTest(rayFromPosition=camera_pos_world.tolist(), rayToPosition=(10.0*vec+camera_pos_world).tolist(), physicsClientId=self.sim.id)
+				ray = p.rayTest(rayFromPosition=camera_pos_world.tolist(), rayToPosition=(100.0*vec+camera_pos_world).tolist(), physicsClientId=self.sim.id)
 				hit_pos = torch.tensor(ray[0][3])
 				results = {}
 				results['camera_pos'] = camera_pos_world
 				results['target_pos'] = torch.tensor(ray[0][3])
-				results['target_obj'] = self.object_dict[ray[0][0]]
+				results['target_obj'] = self.object_dict.get(ray[0][0], None)
 				results['target_normal'] = torch.tensor(ray[0][4])
 				return results
 

@@ -24,6 +24,23 @@ def randrange(low, high):
 	return x
 
 
+def dict2str(dictionary, spaces=0):
+	string = ""
+	if type(dictionary) == dict:
+		for (key,value) in dictionary.items():
+			if type(value) != dict and type(value) != list:
+				string += (" " * spaces*4) + str(key) + " - " + str(value) + "\n"
+			else:
+				string += (" " * spaces*4) + str(key) + " - \n"
+				string += dict2str(value,spaces+1)
+	elif type(dictionary) == list:
+		for item in dictionary:
+			string += dict2str(item,spaces+1)
+	else:
+		string += (" " * spaces*4) + str(dictionary) + "\n"
+	return string
+
+
 def combine_decorator(method, methodtype='return'):
 	def decorate(cls):
 		def newmethod(self, *args, **kwargs):

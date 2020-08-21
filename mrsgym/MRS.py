@@ -24,7 +24,7 @@ class MRS(gym.Env):
 		self.K_HOPS = 0
 		self.STATE_SIZE = 0
 		self.ACTION_DIM = 3
-		self.AGENT_RADIUS = 0.25
+		self.AGENT_RADIUS = 0.3
 		self.COMM_RANGE = float('inf')
 		self.RETURN_A = True
 		self.RETURN_EVENTS = True
@@ -109,7 +109,14 @@ class MRS(gym.Env):
 		codist = self.get_relative_position(startpos).norm(dim=2)
 		codist.diagonal().fill_(float('inf'))
 		while torch.any(codist < 2*self.AGENT_RADIUS):
-			idxs = torch.where(codist < 2*self.AGENT_RADIUS)[0]
+			collisions = codist < 2*self.AGENT_RADIUS
+			idxs = []
+			while torch.sum(collisions) != 0:
+				idx = torch.mode(torch.where(collisions)[0])[0]
+				idxs.append(idx)
+				collisions[idx,:] = 0
+				collisions[:,idx] = 0
+			idxs = torch.tensor(idxs)
 			if sample_one_agent:
 				for idx in idxs:
 					startpos[idx,:] = self.START_POS.sample()

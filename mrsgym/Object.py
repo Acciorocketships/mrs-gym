@@ -93,59 +93,73 @@ class Object:
 
 	def get_contact_points(self, other=None, body=False):
 		if other is None: # filter by specific ID of another object
-			contactObjList = p.getContactPoints(self.uid, physicsClientId=self.sim.id)
+			contactObjList = p.getContactPoints(bodyA=self.uid, physicsClientId=self.sim.id)
 		else:
-			contactObjList = p.getContactPoints(self.uid, filterBodyUniqueIdB=other, physicsClientId=self.sim.id)
+			contactObjList = p.getContactPoints(bodyA=self.uid, bodyB=other.uid, physicsClientId=self.sim.id)
 		if len(contactObjList)==0:
-			return {'object':[], 'pos':torch.zeros(0,3), 'normal':torch.zeros(0,3), 'distance':torch.zeros(0)}
+			return {'object':[], 'pos':torch.zeros(0,3), 'normal force':torch.zeros(0,3), 'distance':torch.zeros(0)}
 		contacts = {}
 		contacts['object'] = [self.env.object_dict.get(contactObj[2], None) for contactObj in contactObjList]
 		contacts['pos'] = torch.stack([torch.tensor(contactObj[5]) for contactObj in contactObjList], dim=0) # world coordinates
-		contacts['normal'] = torch.stack([contactObj[9] * torch.tensor(contactObj[7]) for contactObj in contactObjList], dim=0) # direction and magnitude of normal force
+		contacts['normal force'] = torch.stack([contactObj[9] * torch.tensor(contactObj[7]) for contactObj in contactObjList], dim=0) # direction and magnitude of normal force
 		contacts['distance'] = torch.tensor([contactObj[8] for contactObj in contactObjList])
 		if body:
 			R = self.get_ori(mat=True)
 			pos = self.get_pos()
 			contacts['pos'] = (R.T @ contacts['pos'].T - R.T @ pos).T
-			contacts['normal'] = (R.T @ contacts['normal'].T).T
+			contacts['normal force'] = (R.T @ contacts['normal force'].T).T
 		return contacts
 
 
-	def get_closest_points(self, other=None, body=False):
-		pass
-
-
-	def get_dist(self, other=None):
-		pass
+	def get_dist(self, other, MAX_DIST=float('inf'), body=False):
+		contactObjList = p.getClosestPoints(bodyA=self.uid, bodyB=other.uid, distance=MAX_DIST, physicsClientId=self.sim.id)
+		if len(contactObjList)==0:
+			return {'object':[], 'pos':torch.zeros(0,3), 'normal':torch.zeros(0,3), 'distance':torch.zeros(0)}
+		contacts = {}
+		contacts['object'] = [self.env.object_dict.get(contactObj[2], None) for contactObj in contactObjList]
+		contacts['closest pos self'] = torch.stack([torch.tensor(contactObj[5]) for contactObj in contactObjList], dim=0)
+		contacts['closest pos other'] = torch.stack([torch.tensor(contactObj[6]) for contactObj in contactObjList], dim=0)
+		contacts['distance'] = torch.tensor([contactObj[8] for contactObj in contactObjList])
+		if body:
+			R = self.get_ori(mat=True)
+			pos = self.get_pos()
+			contacts['closest pos self'] = (R.T @ contacts['closest pos self'].T - R.T @ pos).T
+			contacts['closest pos other'] = (R.T @ contacts['closest pos other'].T - R.T @ pos).T
+		return contacts
 
 
 	def collision(self):
 		return any(map(lambda dist: dist<0.04, self.get_contact_points()['distance']))
 
 
-	def get_nearby_objects(self):
+	def get_closest_objects(self):
 		pass
 
 
-	def raycast(self, offset=torch.zeros(3), directions=torch.tensor([100.,0.,0.]), body=True):
+	def raycast(self, offset=torch.zeros(3), directions=torch.tensor([1.,0.,0.]), body=True, RANGE=100.0):
+		directions *= RANGE
 		if len(directions.shape)==1:
 			directions = directions.unsqueeze(0)
 		if len(offset.shape)==1:
-			offset = offset.expand(directions.shape[0])
+			offset = offset.expand(directions.shape[0], -1)
 		R = self.get_ori(mat=True)
 		pos = self.get_pos()
 		if body:
-			offset = R @ offset
+			offset = (R @ offset.T).T
 			directions = (R @ directions.T).T
 		start = offset + pos
 		start = start.expand(directions.shape[0], -1)
 		end = directions + start
-		rays = p.rayTestBatch(rayFromPositions=start.tolist(), rayToPositions=end.tolist(), parentObjectUniqueId=self.uid, physicsClientId=self.sim.id)
+		rays = p.rayTestBatch(rayFromPositions=start.tolist(), rayToPositions=end.tolist(), physicsClientId=self.sim.id)
 		ray_dict = {}
 		ray_dict["object"] = [self.env.object_dict.get(ray[0], None) for ray in rays]
-		ray_dict["pos_world"] = torch.stack([torch.tensor(ray[3]) for ray in rays])
-		ray_dict["pos"] = (R.T @ ray_dict['pos_world'].T - R.T @ pos).T
-		ray_dict["dist"] = (ray_dict['pos'] - offset).norm(dim=-1)
+		ray_dict["pos world"] = torch.stack([torch.tensor(ray[3])-offset[i,:] for i, ray in enumerate(rays)])
+		ray_dict["pos"] = (R.T @ ray_dict['pos world'].T - (R.T @ pos)[:,None]).T
+		for i, obj in enumerate(ray_dict["object"]):
+			if obj is None:
+				ray_dict["pos world"][i,:] = torch.zeros(3)
+				ray_dict["pos"][i,:] = torch.zeros(3)
+		ray_dict["dist"] = ray_dict['pos'].norm(dim=-1)
 		return ray_dict
 
 
