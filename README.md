@@ -35,14 +35,17 @@ if __name__ == '__main__':
 ### MRS
 1. `__init__`
 	
-	Example Usage: `mrsenv = gym.make('mrs-v0', **kwargs)`
+	Example Usage: 
+	```python
+	mrsenv = gym.make('mrs-v0', **kwargs)
+	```
 	
 	Description: creates the MRS gym environment
 	
 	Arguments:
 	- state_fn: (function) [required] specifies the content of the obs output of mrsenv.step(actions). Takes an agent (Quadcopter) class as an input, and produces a one-dimensional (STATE_SIZE) tensor as an output.
-	- reward_fn: (function) specifies the content of the reward output of mrsenv.step(actions). Takes the env (Environment) as an input, and produces an output of any type (default is 0.0).
-	- done_fn: (function) specifies the termination conditions. Takes the env (Environment) and the number of steps since the last reset (int) as an input, and produces a bool as the output. The default behaviour is to return True when the time steps since the last reset reaches MAX_TIMESTEPS.
+	- reward_fn: (function) reward_fn(env, s, a, s') specifies the content of the reward output of mrsenv.step(actions). Takes the env (Environment), the current observation ((N_AGENTS x STATE_SIZE x K_HOPS+1) tensor), the current action ((N_AGENTS x ACTION_DIM) tensor), and the resulting next observation ((N_AGENTS x STATE_SIZE x K_HOPS+1) tensor) as an input, and produces an output of any type (default is 0.0).
+	- done_fn: (function) done_fn(env, s, t) specifies the termination conditions. Takes the env (Environment), the observation ((N_AGENTS x STATE_SIZE x K_HOPS+1) tensor), and the number of steps since the last reset (int) as an input, and produces a bool as the output. The default behaviour is to return True when the time steps since the last reset reaches MAX_TIMESTEPS.
 	- info_fn: (function) specifies the content of the info output of mrsenv.step(actions). Takes an instance of the env (Environment) as an input, and produces a dict as an output.
 	- update_fn: (function) This function allows the user to specify any extra behaviour they wish to run every time the simulation is stepped. The update_fn could be used to add aerodynamics disturbances to the objects in the environment, change the position and orientation of the camera view, add/remove objects or agents, etc. Takes the env (Environment) as an input.
 	- env: (Environment OR str) defines the environment, which contains all objects and agents. Choose from:
@@ -77,7 +80,10 @@ if __name__ == '__main__':
 	
 2. `reset`
 	
-	Example Usage: `mrsenv.reset(vel=torch.tensor([1.,0.,0.]).expand(N_AGENTS,-1)`
+	Example Usage: 
+	```python
+	mrsenv.reset(vel=torch.tensor([1.,0.,0.]).expand(N_AGENTS,-1)
+	```
 	
 	Description: uses START_POS and START_ORI to reset the states of all agents. In addition, pos, vel, ori, and angvel can be given as optional arguments. This will override the default reset value
 	
@@ -86,10 +92,27 @@ if __name__ == '__main__':
 	- vel: ((N_AGENTS x 3) tensor) sets starting velocities [vx, vy, vz] for all agents instead of the default value of [0, 0, 0]
 	- ori: ((N_AGENTS x 3) tensor) overrides START_ORI to specify starting euler angles [roll, pitch, yaw] for all agents. All euler angles in this library are given as extrinsic rotations in the order 'xyz' (or equivalently intrinsic rotations in the order 'ZYX')
 	- angvel: ((N_AGENTS x 3) tensor) sets starting angular velocities [wx, wy, yz] for all agents instead of the default value of [0, 0, 0]
+	
+3. `set`
+
+	Example Usage: 
+	```python
+	mrsenv.set(ori=torch.tensor([0.,0.,0.]).expand(N_AGENTS,-1)
+	```
+	Description: The same as reset, except if the optional arguments are not given, then those components of the state will not be changed. When called with no arguments, reset() sets all of the agents to their default values, while set() does nothing.
+	
+	Arguments:
+	- pos: ((N_AGENTS x 3) tensor) sets starting positions [x, y, z] for all agents
+	- vel: ((N_AGENTS x 3) tensor) sets starting velocities [vx, vy, vz] for all agents.
+	- ori: ((N_AGENTS x 3) tensor) sets euler angles [roll, pitch, yaw] for all agents.
+	- angvel: ((N_AGENTS x 3) tensor) sets starting angular velocities [wx, wy, yz] for all agents.
 		
 3. `wait`
 
-	Example Usage: `mrsenv.wait()`
+	Example Usage: 
+	```python
+	mrsenv.wait()
+	```
 	
 	Description: measures the loop time of execution and pauses for the appropriate amount of time so the simulation runs with a period of DT and plays at 1x speed.
 	
@@ -98,7 +121,10 @@ if __name__ == '__main__':
 		
 4. `step`
 
-	Example Usage: `mrsenv.step(torch.zeros(N_AGENTS,3), ACTION_TYPE="set_target_vel")`
+	Example Usage: 
+	```python
+	mrsenv.step(torch.zeros(N_AGENTS,3), ACTION_TYPE="set_target_vel")
+	```
 	
 	Description: sets the actions and steps the simulation by one timestep
 	
@@ -108,8 +134,8 @@ if __name__ == '__main__':
 	
 	Outputs: (obs, reward, done, info)
 	- obs: ((N_AGENTS x STATE_SIZE x K_HOPS+1) tensor) a matrix of the states returned by state_fn(agent) for all agents
-	- reward: (float) the reward calculated by the given reward_fn(env). It can have any type, but the default is 0.0 if a reward_fn is not given.
-	- done: (bool) the termination conditions calculated by the given done_fn(env, steps_since_reset). By default, it is True when the number of timesteps since the last reset reaches MAX_TIMESTEPS.
+	- reward: (float) the reward calculated by the given reward_fn(env, s, a, s'). It can have any type, but the default is 0.0 if a reward_fn is not given.
+	- done: (bool) the termination conditions calculated by the given done_fn(env, s, t). By default, it is True when the number of timesteps since the last reset reaches MAX_TIMESTEPS.
 	- info: (dict) a dict of extra information that is calculated by info_fn(env). The adjacency matrix (N_AGENTS x N_AGENTS x K_HOPS+1) is also stored in info["A"] if RETURN_A is true
 		
 		
