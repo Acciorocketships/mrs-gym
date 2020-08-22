@@ -146,7 +146,7 @@ if __name__ == '__main__':
 	
 	def state_fn(quad):
 		target_vel = quad.get_data("target_vel")[quad.get_idx(),:]
-		return target_vel - quad.get_vel()
+		return torch.cat([target_vel - quad.get_vel(), quad.get_ori()])
 	```
 	
 	Description: Sets and gets user data to be stored in the environment. This data can be accessed from the base mrsenv, or from the env Environment() object which is available in the reward_fn, info_fn, done_fn, and update_fn, or from the quad Object() which is available in the state_fn.
