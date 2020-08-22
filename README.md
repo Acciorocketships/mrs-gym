@@ -106,7 +106,7 @@ if __name__ == '__main__':
 	- ori: ((N_AGENTS x 3) tensor) sets euler angles [roll, pitch, yaw] for all agents.
 	- angvel: ((N_AGENTS x 3) tensor) sets starting angular velocities [wx, wy, yz] for all agents.
 		
-3. `wait`
+4. `wait`
 
 	Example Usage: 
 	```python
@@ -118,7 +118,7 @@ if __name__ == '__main__':
 	Arguments:
 	- dt: (float) sets the desired loop time. If None is given, then BulletSim.DT is used.
 		
-4. `step`
+5. `step`
 
 	Example Usage: 
 	```python
@@ -138,3 +138,24 @@ if __name__ == '__main__':
 	- info: (dict) a dict of extra information that is calculated by info_fn(env). The adjacency matrix (N_AGENTS x N_AGENTS x K_HOPS+1) is also stored in info["A"] if RETURN_A is True
 		
 		
+6. `set_data` and `get_data`
+
+	Example Usage:
+	```python
+	mrsenv.set_data("target_vel", torch.randn(3))
+	
+	def reward_fn(env, obs, action, obs_next):
+		target_vel = env.get_data("target_vel")
+		curr_vel = obs[:,:3]
+		rewards = -(curr_vel-target_vel).norm(dim=1)
+		return rewards
+	```
+	
+	Description: Sets and gets user data to be stored in the environment. This data can be accessed from the base mrsenv, or from the env Environment() object which is available in the reward_fn, info_fn, done_fn, and update_fn, or from the quad Object() which is available in the state_fn.
+	
+	Arguments:
+	- name: name of the variable you want to set/get
+	- val (only for set_data): value of the variable you want to set
+	
+	Outputs:
+	- val (only for get_data): value of the variable you want to get
