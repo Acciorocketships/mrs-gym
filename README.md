@@ -53,7 +53,6 @@ if __name__ == '__main__':
 		2. "simple": creates a world with N_AGENTS agents and a plane at z=0. This is the default
 	- N_AGENTS: (int) sets the number of agents in the environment.
 	- K_HOPS: (int) sets the number of consecutive time steps to return in the observation, which is of size (N_AGENTS x STATE_SIZE x K_HOPS+1).
-	- AGENT_RADIUS: (float) used purely for start position generation, this prevents agents from overlapping.
 	- RETURN_A: (bool) specifies whether or not to compute the adjacency matrix. It is returned in the info dict under key "A".
 	- RETURN_EVENTS: (bool) specifies whether or note to include "keyboard_events" and "mouse_events" in the info dict. "keyboard_events" is a dict which maps a key (str) to a value (1 for pressed, 0 for held, -1 for released). "mouse_events" is not None when there is a mouse click, and it returns a dict of:
 		1. "camera_pos": ((3) tensor) the world coordinates of the camera
@@ -69,14 +68,14 @@ if __name__ == '__main__':
 		5. "set_speeds": sets the speeds of the individual propellors (rad/s) [wfront, wleft, wback, wright]
 	- START_POS: ((N_AGENTS x 3) tensor OR torch.distributions.distribution.Distribution) sets the starting positions or the distribution from which the starting positions are sampled.
 		1. (N_AGENTS x 3) tensor: specifies fixed starting positions for the agents
-		2. (3) distribution: a distribution whose sample() method yields a (3) tensor is used to independently set the starting positions for each agent. If there are any overlapping agents, they will be re-sampled.
+		2. (3) distribution: a distribution whose sample() method yields a (3) tensor is used to independently set the starting positions for each agent. If there are any overlapping agents (given the specified AGENT_RADIUS), they will be re-sampled.
 		3. (N_AGENTS x 3) distribution: a joint distribution whose sample() method yields a (N_AGENTS x 3) tensor is used to set the starting positions for the whole swarm. This can be useful for using a generator to output a fixed suite of starting positions to compare different algorithms with the same initial conditions.
 	- START_ORI ((3) tensor OR (6) tensor OR (N_AGENTS x 3) tensor OR (N_AGENTS x 6) tensor): specifies the starting orientations or the distribution of starting orientations
 		1. ((3) tensor OR (N_AGENTS x 3) tensor: sets the exact euler angles (rad) in [roll, pitch, yaw] format. If a (3) tensor is given, then all of the orientations are the same.
 		2. ((6) tensor OR (N_AGENTS x 6) tensor: sets the range of possible euler angles, to be sampled from a uniform distribution [roll_low, pitch_low, yaw_low, roll_high, pitch_high, yaw_high]
 	- DT: (float) sets the timestep for the environment. The default is 0.01s
-	- REAL_TIME: (bool) If true, the environment runs asynchronously. If false, one time step elapses whenever env.step(actions) is called.
-	- HEADLESS: (bool) If true, the simulation runs without a GUI component.
+	- REAL_TIME: (bool) If True, the environment runs asynchronously. If False, one time step elapses whenever env.step(actions) is called.
+	- HEADLESS: (bool) If True, the simulation runs without a GUI component.
 	
 2. `reset`
 	
@@ -88,10 +87,10 @@ if __name__ == '__main__':
 	Description: uses START_POS and START_ORI to reset the states of all agents. In addition, pos, vel, ori, and angvel can be given as optional arguments. This will override the default reset value
 	
 	Arguments:
-	- pos: ((N_AGENTS x 3) tensor) overrides START_POS to specify starting positions [x, y, z] for all agents
-	- vel: ((N_AGENTS x 3) tensor) sets starting velocities [vx, vy, vz] for all agents instead of the default value of [0, 0, 0]
-	- ori: ((N_AGENTS x 3) tensor) overrides START_ORI to specify starting euler angles [roll, pitch, yaw] for all agents. All euler angles in this library are given as extrinsic rotations in the order 'xyz' (or equivalently intrinsic rotations in the order 'ZYX')
-	- angvel: ((N_AGENTS x 3) tensor) sets starting angular velocities [wx, wy, yz] for all agents instead of the default value of [0, 0, 0]
+	- pos: ((N_AGENTS x 3) tensor) overrides START_POS to specify starting positions [x, y, z] for all agents.
+	- vel: ((N_AGENTS x 3) tensor) sets starting velocities [vx, vy, vz] for all agents instead of the default value of [0, 0, 0].
+	- ori: ((N_AGENTS x 3) tensor) overrides START_ORI to specify starting euler angles [roll, pitch, yaw] for all agents. All euler angles in this library are given as extrinsic rotations in the order 'xyz' (or equivalently intrinsic rotations in the order 'ZYX').
+	- angvel: ((N_AGENTS x 3) tensor) sets starting angular velocities [wx, wy, yz] for all agents instead of the default value of [0, 0, 0].
 	
 3. `set`
 
@@ -117,7 +116,7 @@ if __name__ == '__main__':
 	Description: measures the loop time of execution and pauses for the appropriate amount of time so the simulation runs with a period of DT and plays at 1x speed.
 	
 	Arguments:
-	- dt: (float) sets the desired loop time. If none is given, then BulletSim.DT is used
+	- dt: (float) sets the desired loop time. If None is given, then BulletSim.DT is used.
 		
 4. `step`
 
@@ -126,7 +125,7 @@ if __name__ == '__main__':
 	mrsenv.step(torch.zeros(N_AGENTS,3), ACTION_TYPE="set_target_vel")
 	```
 	
-	Description: sets the actions and steps the simulation by one timestep
+	Description: sets the actions and steps the simulation by one timestep.
 	
 	Arguments:
 	- actions: ((N_AGENTS x 3) tensor) [required] sets the actions for the agents
@@ -136,6 +135,6 @@ if __name__ == '__main__':
 	- obs: ((N_AGENTS x STATE_SIZE x K_HOPS+1) tensor) a matrix of the states returned by state_fn(agent) for all agents
 	- reward: (float) the reward calculated by the given reward_fn(env, s, a, s'). It can have any type, but the default is 0.0 if a reward_fn is not given.
 	- done: (bool) the termination conditions calculated by the given done_fn(env, s, t). By default, it is True when the number of timesteps since the last reset reaches MAX_TIMESTEPS.
-	- info: (dict) a dict of extra information that is calculated by info_fn(env). The adjacency matrix (N_AGENTS x N_AGENTS x K_HOPS+1) is also stored in info["A"] if RETURN_A is true
+	- info: (dict) a dict of extra information that is calculated by info_fn(env). The adjacency matrix (N_AGENTS x N_AGENTS x K_HOPS+1) is also stored in info["A"] if RETURN_A is True
 		
 		
