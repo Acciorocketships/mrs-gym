@@ -26,6 +26,14 @@ class Object:
 		return (p.getBodyInfo(self.uid, physicsClientId=self.sim.id)[1]).decode('utf-8')
 
 
+	def set_data(self, name, val):
+		self.sim.set_data(name, val)
+
+
+	def get_data(self, name):
+		return self.sim.get_data(name)
+
+
 	# resets the given inputs, and keeps the others the same
 	def set_state(self, pos=None, ori=None, vel=None, angvel=None):
 		# pos

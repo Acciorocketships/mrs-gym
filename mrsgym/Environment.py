@@ -13,11 +13,21 @@ class Environment:
 		self.objects = []
 		self.controlled = []
 		self.object_dict = {} # dict of uid to all types of objects in env (agents, objects, controlled)
+		self.agent_idxs = {} # dict of agent objects to their idx in self.agents
+		self.data = {}
 
 
 	def init_agents(self, N):
 		for _ in range(N):
 			self.add_agent(Quadcopter(env=self, sim=self.sim))
+
+
+	def set_data(self, name, val):
+		self.data[name] = val
+
+
+	def get_data(self, name):
+		return self.data[name]
 
 
 	def add_object(self, obj):
@@ -43,7 +53,7 @@ class Environment:
 
 	def remove_controlled(self, obj):
 		if isinstance(obj, int):
-			uid = self.objects[obj].uid
+			uid = self.controlled[obj].uid
 			del self.controlled[obj]
 		elif isinstance(obj, ControlledObject):
 			uid = obj.uid
@@ -55,16 +65,18 @@ class Environment:
 	def add_agent(self, agent):
 		self.agents.append(agent)
 		self.object_dict[agent.uid] = agent
+		self.agent_idxs[agent] = len(self.agents)-1
 
 
 	def remove_agent(self, agent):
 		if isinstance(agent, int):
-			uid = self.objects[obj].uid
+			uid = self.agents[obj].uid
 			del self.agents[agent]
 		elif isinstance(obj, Quadcopter):
 			uid = obj.uid
-			idx = self.agents.index(agent)
+			idx = self.agent_idxs[agent]
 			del self.agents[idx]
+		del self.agent_idxs[self.object_dict[uid]]
 		del self.object_dict[uid]
 
 
@@ -81,7 +93,11 @@ class Environment:
 
 	def set_state(self, pos, ori, vel, angvel):
 		for i, agent in enumerate(self.agents):
-			agent.set_state(pos=pos[i,:], ori=ori[i,:], vel=vel[i,:], angvel=angvel[i,:])
+			posval = pos[i,:] if (pos is not None) else None
+			orival = ori[i,:] if (ori is not None) else None
+			velval = vel[i,:] if (vel is not None) else None
+			angvelval = angvel[i,:] if (angvel is not None) else None
+			agent.set_state(pos=posval, ori=orival, vel=velval, angvel=angvelval)
 
 
 	def update_controlled(self):

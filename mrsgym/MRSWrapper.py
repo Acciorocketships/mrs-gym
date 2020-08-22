@@ -3,6 +3,10 @@ import gym
 from gym import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 
+# RLlib Notes
+# • make sure to give STATE_SIZE so that the observation_space is set to the proper size
+# • by default, the action_space is between 0 and 1. you can specify an action_fn to transform given actions (or give your own action_space)
+
 
 class MRS_RLlib_MultiAgent(MRS, MultiAgentEnv):
 
@@ -11,9 +15,10 @@ class MRS_RLlib_MultiAgent(MRS, MultiAgentEnv):
 		"reward_fn": lambda env: 0.0,
 		"done_fn": lambda env, steps: torch.any(torch.tensor([agent.collision() for agent in env.agents.values()])),
 		"info_fn": lambda env: {},
+		"update_fn": None,
 		"env": "simple",
 		"ACTION_TYPE": "set_target_pos",
-		"ACTION_TRANSFORM": lambda action: action,
+		"action_fn": lambda action: action,
 		"STATE_SIZE": 0,
 		"ACTION_DIM": 3,
 		"N_AGENTS": 1,
@@ -42,18 +47,10 @@ class MRS_RLlib_MultiAgent(MRS, MultiAgentEnv):
 	def calc_obs(self):
 		return {agent_name: self.state_fn(self.env.agents[agent_name]) for agent_name in self.env.agent_names}
 
-	def calc_reward(self):
-		return self.reward_fn(self.env)
-
-	def calc_done(self):
-		return self.done_fn(self.env, self.steps_since_reset)
-
-	def calc_info(self):
-		return self.info_fn(self.env)
-
 	def reset(self):
 		if not isinstance(self.env.agents, dict):
 			return
+		self.steps_since_reset = 0
 		self.N_AGENTS = len(self.env.agents)
 		pos = self.generate_start_pos()
 		ori = self.generate_start_ori()
@@ -61,19 +58,27 @@ class MRS_RLlib_MultiAgent(MRS, MultiAgentEnv):
 		angvel = torch.zeros(self.N_AGENTS, 3)
 		for i, agent_name in enumerate(self.env.agent_names):
 			self.env.agents[agent_name].set_state(pos=pos[i,:], ori=ori[i,:], vel=vel[i,:], angvel=angvel[i,:])
-		return self.calc_obs()
+		obs = self.calc_obs()
+		self.last_obs = obs
+		return obs
 
 	def step(self, actions):
 		# Set Actions
+		self.last_action = actions
 		for agent_name, action in actions.items():
-			getattr(self.env.agents[agent_name], self.ACTION_TYPE)(action)
+			getattr(self.env.agents[agent_name], self.ACTION_TYPE)(self.action_fn(action))
+		# Custom Updates
+		self.env.update_controlled()
+		if self.update_fn is not None:
+			self.update_fn(self.env)
 		# Step Simulation
-		BulletSim.step_sim()
+		self.sim.step_sim()
 		# Return Values
 		obs = self.calc_obs()
-		reward = self.calc_reward()
-		done = self.calc_done()
-		info = self.calc_info()
+		reward = self.reward_fn(self.env, self.last_obs, self.last_action, obs)
+		done = self.done_fn(self.env, obs, self.steps_since_reset)
+		info = self.info_fn(self.env)
+		self.last_obs = obs
 		# Time
 		self.last_loop_time = time.monotonic()
 		self.steps_since_reset += 1
@@ -89,9 +94,10 @@ class MRS_RLlib(MRS):
 		"reward_fn": lambda env: 0.0,
 		"done_fn": lambda env, steps: torch.any(torch.tensor([agent.collision() for agent in env.agents.values()])),
 		"info_fn": lambda env: {},
+		"update_fn": None,
 		"env": "simple",
 		"ACTION_TYPE": "set_target_pos",
-		"ACTION_TRANSFORM": lambda action: action,
+		"action_fn": lambda action: action,
 		"STATE_SIZE": 0,
 		"ACTION_DIM": 3,
 		"N_AGENTS": 1,
@@ -100,7 +106,7 @@ class MRS_RLlib(MRS):
 	def __init__(self, config={}):
 		parameters = MRS_RLlib_MultiAgent.defaults; parameters.update(config)
 		super(MRS_RLlib_MultiAgent, self).__init__(**parameters)
-		self.ACTION_TRANSFORM = parameters.get("ACTION_TRANSFORM", lambda action: action)
+		self.action_fn = parameters.get("action_fn", lambda action: action)
 		self.switch_function_names(["step"])
 
 
@@ -111,5 +117,5 @@ class MRS_RLlib(MRS):
 
 
 	def _step(self, actions):
-		actions = self.ACTION_TRANSFORM(actions)
+		actions = self.action_fn(actions)
 		return self.step_mrs(actions)

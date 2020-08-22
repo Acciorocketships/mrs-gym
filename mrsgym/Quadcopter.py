@@ -13,6 +13,9 @@ class Quadcopter(Object):
 		self.attributes = self.read_attributes()
 		self.controller = QuadControl(self.attributes)
 
+	def get_idx(self):
+		return self.env.agent_idxs[self]
+
 	def read_attributes(self):
 		attributes = {}
 		attributes['MASS'] = p.getDynamicsInfo(self.uid, linkIndex=-1, physicsClientId=self.sim.id)[0]
@@ -40,7 +43,7 @@ class Quadcopter(Object):
 		self.set_motorforces(self.controller.control_to_motorforce(control))
 
 
-	def set_force(self, forces=[0,0,0]):
+	def set_target_force(self, forces=[0,0,0]):
 		control = self.controller.force_control(ori=self.get_ori(), angvel=self.get_angvel(), target_force=forces)
 		self.set_control(control)
 

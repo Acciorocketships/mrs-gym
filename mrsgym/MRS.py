@@ -23,7 +23,7 @@ class MRS(gym.Env):
 		self.N_AGENTS = 1
 		self.K_HOPS = 0
 		self.STATE_SIZE = 0
-		self.ACTION_DIM = 3
+		self.ACTION_DIM = 0
 		self.AGENT_RADIUS = 0.3
 		self.COMM_RANGE = float('inf')
 		self.RETURN_A = True
@@ -34,8 +34,8 @@ class MRS(gym.Env):
 		self.set_constants(kwargs)
 		# Inputs
 		self.state_fn = state_fn
-		self.reward_fn = reward_fn if (reward_fn is not None) else (lambda env: 0.0)
-		self.done_fn = done_fn if (done_fn is not None) else (lambda env, steps: steps >= self.MAX_TIMESTEPS)
+		self.reward_fn = reward_fn if (reward_fn is not None) else (lambda env, obs, action, obs_next: 0.0)
+		self.done_fn = done_fn if (done_fn is not None) else (lambda env, obs, steps: steps >= self.MAX_TIMESTEPS)
 		self.info_fn = info_fn if (info_fn is not None) else (lambda env: {})
 		self.update_fn = update_fn
 		if isinstance(env, Environment):
@@ -46,6 +46,11 @@ class MRS(gym.Env):
 			self.sim = BulletSim(**kwargs)
 			self.env = env_generator(envtype=env, N=self.N_AGENTS, sim=self.sim)
 		# Constants that depend on other constants
+		if self.ACTION_DIM == 0:
+			if "set_target" in self.ACTION_TYPE:
+				self.ACTION_DIM = 3
+			else:
+				self.ACTION_DIM = 4
 		self.observation_space = Box(np.zeros((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1)), np.ones((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1)), dtype=np.float64)
 		self.action_space = Box(np.zeros((self.N_AGENTS,self.ACTION_DIM)), np.ones((self.N_AGENTS,self.ACTION_DIM)), dtype=np.float64)
 		self.START_POS = Normal(torch.tensor([0.,0.,2.]), 1.0) # must have sample() method implemented. can generate size (N,3) or (3,)
@@ -57,6 +62,8 @@ class MRS(gym.Env):
 		self.X = deque([])
 		self.A = deque([])
 		self.steps_since_reset = 0
+		self.last_action = None
+		self.last_obs = None
 		self.last_loop_time = time.monotonic()
 		# Setup
 		self.reset()
@@ -75,8 +82,12 @@ class MRS(gym.Env):
 			self.X.pop()
 		for _ in range(self.K_HOPS+1 - len(self.X)):
 			self.X.append(X)
-		Xk = torch.stack(list(self.X), dim=2).squeeze(2) # Xk: N x D x K+1
+		Xk = self.get_Xk()
 		return Xk
+
+
+	def get_Xk(self):
+		return torch.stack(list(self.X), dim=2).squeeze(2) # Xk: N x D x K+1
 
 
 	def calc_Ak(self):
@@ -86,8 +97,12 @@ class MRS(gym.Env):
 			self.A.pop()
 		for _ in range(self.K_HOPS+1 - len(self.A)):
 			self.A.append(torch.zeros(self.N_AGENTS, self.N_AGENTS))
-		Ak = torch.stack(list(self.A), dim=2).squeeze(2) # Ak: N x N x K+1
+		Ak = self.get_Ak()
 		return Ak
+
+
+	def get_Ak(self):
+		return torch.stack(list(self.A), dim=2).squeeze(2) # Ak: N x N x K+1
 
 
 	def calc_A(self, X):
@@ -160,11 +175,28 @@ class MRS(gym.Env):
 		self.X = deque([])
 		self.A = deque([])
 		self.steps_since_reset = 0
+		Xk = self.calc_Xk()
+		self.last_obs = Xk
+		return Xk
 
 
-	# Assigns a given state to the agents without "resetting" (the state for parameters that aren't given wont be changed)
+	# Like reset, except the values that aren't given will be left unchanged (instead of using defaults)
 	def set(self, pos=None, ori=None, vel=None, angvel=None):
-		pass
+		self.env.set_state(pos=pos, ori=ori, vel=vel, angvel=angvel)
+		self.X = deque([])
+		self.A = deque([])
+		self.steps_since_reset = 0
+		Xk = self.calc_Xk()
+		self.last_obs = Xk
+		return Xk
+
+
+	def set_data(self, name, val):
+		self.env.set_data(name, val)
+
+
+	def get_data(self, name):
+		return self.env.get_data(name)
 
 
 	def close(self):
@@ -189,6 +221,7 @@ class MRS(gym.Env):
 		if actions is not None:
 			if not isinstance(actions, torch.Tensor):
 				actions = torch.tensor(actions)
+			self.last_action = actions
 			if ACTION_TYPE is None:
 				ACTION_TYPE = self.ACTION_TYPE
 			self.env.set_actions(actions, behaviour=ACTION_TYPE)
@@ -201,7 +234,8 @@ class MRS(gym.Env):
 		if self.RETURN_A:
 			Ak = self.calc_Ak()
 		# reward: scalar
-		reward = self.reward_fn(self.env)
+		reward = self.reward_fn(self.env, self.last_obs, self.last_action, Xk)
+		self.last_obs = Xk
 		# info: dict
 		info = self.info_fn(self.env)
 		if self.RETURN_A:
@@ -210,7 +244,7 @@ class MRS(gym.Env):
 			info["keyboard_events"] = self.env.get_keyboard_events()
 			info["mouse_events"] = self.env.get_mouse_events()
 		# done: N (bool tensor)
-		done = self.done_fn(self.env, self.steps_since_reset)
+		done = self.done_fn(self.env, Xk, self.steps_since_reset)
 		# time
 		self.last_loop_time = time.monotonic()
 		self.steps_since_reset += 1
