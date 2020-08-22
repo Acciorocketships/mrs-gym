@@ -142,13 +142,11 @@ if __name__ == '__main__':
 
 	Example Usage:
 	```python
-	mrsenv.set_data("target_vel", torch.randn(3))
+	mrsenv.set_data("target_vel", torch.randn(N,3))
 	
-	def reward_fn(env, obs, action, obs_next):
-		target_vel = env.get_data("target_vel")
-		curr_vel = obs[:,:3]
-		rewards = -(curr_vel-target_vel).norm(dim=1)
-		return rewards
+	def state_fn(quad):
+		target_vel = quad.get_data("target_vel")[quad.get_idx(),:]
+		return target_vel - quad.get_vel()
 	```
 	
 	Description: Sets and gets user data to be stored in the environment. This data can be accessed from the base mrsenv, or from the env Environment() object which is available in the reward_fn, info_fn, done_fn, and update_fn, or from the quad Object() which is available in the state_fn.
