@@ -27,11 +27,11 @@ class Object:
 
 
 	def set_data(self, name, val):
-		self.sim.set_data(name, val)
+		self.env.set_data(name, val)
 
 
 	def get_data(self, name):
-		return self.sim.get_data(name)
+		return self.env.get_data(name)
 
 
 	# resets the given inputs, and keeps the others the same

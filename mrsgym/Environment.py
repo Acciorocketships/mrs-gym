@@ -27,7 +27,7 @@ class Environment:
 
 
 	def get_data(self, name):
-		return self.data[name]
+		return self.data.get(name, None)
 
 
 	def add_object(self, obj):

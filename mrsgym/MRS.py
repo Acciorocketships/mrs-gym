@@ -26,8 +26,8 @@ class MRS(gym.Env):
 		self.ACTION_DIM = 0
 		self.AGENT_RADIUS = 0.3
 		self.COMM_RANGE = float('inf')
-		self.RETURN_A = True
-		self.RETURN_EVENTS = True
+		self.RETURN_A = False
+		self.RETURN_EVENTS = False
 		self.ACTION_TYPE = "set_target_vel"
 		self.HEADLESS = False
 		self.MAX_TIMESTEPS = 1000
@@ -65,8 +65,7 @@ class MRS(gym.Env):
 		self.last_action = None
 		self.last_obs = None
 		self.last_loop_time = time.monotonic()
-		# Setup
-		self.reset()
+		self.is_initialised = False
 
 
 	def set_constants(self, kwargs):
@@ -217,6 +216,10 @@ class MRS(gym.Env):
 
 	def step(self, actions, ACTION_TYPE=None):
 		## Set Action and Step Environment ##
+		# init
+		if not self.is_initialised:
+			self.reset()
+			self.is_initialised = True
 		# actions: N x ACTION_DIM
 		if actions is not None:
 			if not isinstance(actions, torch.Tensor):
