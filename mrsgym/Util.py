@@ -3,7 +3,7 @@ import torch
 from enum import IntEnum
 
 def wrap_angle(angle, margin=np.pi):
-	if isinstance(angle, np.ndarray):
+	if isinstance(angle, np.ndarray) or isinstance(angle, torch.Tensor):
 		angle[angle<-margin] += 2*margin
 		angle[angle>margin] -= 2*margin
 	else:
@@ -15,23 +15,26 @@ def wrap_angle(angle, margin=np.pi):
 
 
 def randrange(low, high):
-	if not isinstance(low, torch.Tensor):
-		low = torch.tensor(low)
-		high = torch.tensor(high)
+	low = totensor(low)
+	high = totensor(high)
 	x = torch.rand(low.shape)
 	x *= (high - low)
 	x += low
 	return x
 
 
+def totensor(x):
+	if isinstance(x, torch.Tensor):
+		return x
+	else:
+		return torch.tensor(x)
+
+
 # returns a unit vector representing the direction of the target from the camera position (in world coordinates)
 def pix2world(vpix, hpix, height, aspect, fov, forward, up, pos):
-	if not isinstance(forward, torch.Tensor):
-		forward = torch.tensor(forward)
-	if not isinstance(up, torch.Tensor):
-		up = torch.tensor(up)
-	if not isinstance(pos, torch.Tensor):
-		pos = torch.tensor(pos)
+	forward = totensor(forward)
+	up = totensor(up)
+	pos = totensor(pos)
 	width = int(height * aspect)
 	fov_scaler = np.tan(np.pi/180 * fov/2)
 	pos_view = torch.tensor([1.0, fov*aspect*(1.0-(hpix/width)*2), fov*(1.0-(vpix/height)*2)])

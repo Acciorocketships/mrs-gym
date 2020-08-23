@@ -81,7 +81,7 @@ class Environment:
 
 
 	def get_X(self, state_fn):
-		X = list(map(state_fn, self.agents))
+		X = [totensor(state_fn(agent)) for agent in self.agents]
 		X = torch.stack(X, dim=0)
 		return X
 
@@ -126,21 +126,22 @@ class Environment:
 
 
 	def get_image(self, pos, forward, up=None, fov=90., aspect=4/3, height=720):
-		if not isinstance(pos, torch.Tensor):
-			pos = torch.tensor(pos)
-		if not isinstance(forward, torch.Tensor):
-			forward = torch.tensor(forward)
-		if not isinstance(up, torch.Tensor) and up is not None:
-			up = torch.tensor(up)
-		if up is None:
+		pos = totensor(pos)
+		forward = totensor(forward)
+		if up is not None:
+			up = totensor(up)
+		else:
 			left = torch.cross(torch.tensor([0.,0.,1.]), forward)
 			up = torch.cross(forward, left)
 		view_mat = p.computeViewMatrix(cameraEyePosition=pos.tolist(), cameraTargetPosition=forward.tolist(), cameraUpVector=up.tolist(), physicsClientId=self.sim.id)
 		NEAR_PLANE = 0.01
 		FAR_PLANE = 1000.0
 		proj_mat = p.computeProjectionMatrixFOV(fov=fov, aspect=aspect, nearVal=NEAR_PLANE, farVal=FAR_PLANE, physicsClientId=self.sim.id)
-		img = p.getCameraImage(width=int(aspect * height), height=height, viewMatrix=view_mat, projectionMatrix=proj_mat, physicsClientId=self.sim.id)
-		return img
+		_, _, img, depth, mask = p.getCameraImage(width=int(aspect * height), height=height, viewMatrix=view_mat, projectionMatrix=proj_mat, physicsClientId=self.sim.id)
+		img = torch.tensor(img)
+		depth = FAR_PLANE * NEAR_PLANE / (FAR_PLANE - (FAR_PLANE-NEAR_PLANE)*torch.tensor(depth))
+		mask = torch.tensor(mask)
+		return {"img": img, "depth": depth, "mask": mask}
 
 
 	def get_keyboard_events(self):

@@ -1,6 +1,6 @@
 from mrsgym.MRS import *
 import gym
-from gym import spaces
+from gym.spaces import Box
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 
 # RLlib Notes
@@ -22,21 +22,31 @@ class MRS_RLlib(MRS):
 
 class MRS_RLlib_MultiAgent(MRS_RLlib, MultiAgentEnv):
 
+	defaults = {
+		"reward_fn": lambda env, obs, action, obs_next: {name: 0.0 for name in obs.keys()},
+		"done_fn": lambda env, obs, steps: {"__all__": False},
+		"K_HOPS": 0,
+	}
+
 	def __init__(self, config={}):
-		config.update({"K_HOPS": 0})
-		super(MRS_RLlib_MultiAgent, self).__init__(config)
-		agent_names = [("agent%d" % idx) for idx in range(len(self.env.agents))]
+		params = MRS_RLlib_MultiAgent.defaults.copy()
+		params.update(config)
+		super(MRS_RLlib_MultiAgent, self).__init__(params)
+		self.observation_space = Box(self.observation_space.low[0,:,0], self.observation_space.high[0,:,0], dtype=np.float64)
+		self.action_space = Box(self.action_space.low[0,:], self.action_space.high[0,:], dtype=np.float64)
+		agent_names = [("agent%d" % (idx+1)) for idx in range(len(self.env.agents))]
 		self.names_dict = {agent_names[idx]: idx for idx in range(len(agent_names))}
+		self.env.names_dict = self.names_dict
 
 	def calc_Xk(self):
 		X = self.env.get_X(self.state_fn)
 		self.X.appendleft(X)
-		return {name: X[idx,:] for name, idx in self.names_dict.items()}
+		return {name: np.array(X[idx,:]) for name, idx in self.names_dict.items()}
 
 	def step(self, actions):
 		N = len(self.env.agents)
-		actions_tensor = torch.zeros(N, self.ACTION_DIM)
+		actions_array = np.zeros((N, self.ACTION_DIM))
 		for name, action in actions.items():
 			idx = self.names_dict[name]
-			actions_tensor[idx,:] = action
-		return super(MRS_RLlib_MultiAgent, self).step(actions_tensor)
+			actions_array[idx,:] = action
+		return super(MRS_RLlib_MultiAgent, self).step(actions_array)

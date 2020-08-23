@@ -17,7 +17,7 @@ class MRS(gym.Env):
 	# reward_fn:: input: Environment; output: scalar
 	# done_fn:: input: Environment, steps_since_reset; output: bool
 	# info_fn:: input: Environment; output: dict
-	def __init__(self, state_fn, reward_fn=None, done_fn=None, info_fn=None, update_fn=None, env='simple', **kwargs):
+	def __init__(self, state_fn=None, reward_fn=None, done_fn=None, info_fn=None, update_fn=None, start_fn=None, env='simple', **kwargs):
 		super(MRS, self).__init__()
 		# Constants
 		self.N_AGENTS = 1
@@ -38,6 +38,7 @@ class MRS(gym.Env):
 		self.done_fn = done_fn if (done_fn is not None) else (lambda env, obs, steps: steps >= self.MAX_TIMESTEPS)
 		self.info_fn = info_fn if (info_fn is not None) else (lambda env: {})
 		self.update_fn = update_fn
+		self.start_fn = start_fn
 		if isinstance(env, Environment):
 			self.N_AGENTS = len(env.agents)
 			self.env = env
@@ -51,7 +52,7 @@ class MRS(gym.Env):
 				self.ACTION_DIM = 3
 			else:
 				self.ACTION_DIM = 4
-		self.observation_space = Box(np.zeros((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1)), np.ones((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1)), dtype=np.float64)
+		self.observation_space = Box(np.full((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1), -np.inf), np.full((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1), np.inf))
 		self.action_space = Box(np.zeros((self.N_AGENTS,self.ACTION_DIM)), np.ones((self.N_AGENTS,self.ACTION_DIM)), dtype=np.float64)
 		self.START_POS = Normal(torch.tensor([0.,0.,2.]), 1.0) # must have sample() method implemented. can generate size (N,3) or (3,)
 		self.START_ORI = torch.tensor([0,0,-np.pi/2,0,0,np.pi/2]) # shape (N,6) or (N,3) or (6,) or (3,).
@@ -174,6 +175,8 @@ class MRS(gym.Env):
 		self.X = deque([])
 		self.A = deque([])
 		self.steps_since_reset = 0
+		if self.start_fn is not None:
+			self.start_fn(self)
 		Xk = self.calc_Xk()
 		self.last_obs = Xk
 		return Xk
@@ -185,6 +188,8 @@ class MRS(gym.Env):
 		self.X = deque([])
 		self.A = deque([])
 		self.steps_since_reset = 0
+		if self.start_fn is not None:
+			self.start_fn(self)
 		Xk = self.calc_Xk()
 		self.last_obs = Xk
 		return Xk
@@ -222,8 +227,7 @@ class MRS(gym.Env):
 			self.is_initialised = True
 		# actions: N x ACTION_DIM
 		if actions is not None:
-			if not isinstance(actions, torch.Tensor):
-				actions = torch.tensor(actions)
+			actions = totensor(actions)
 			self.last_action = actions
 			if ACTION_TYPE is None:
 				ACTION_TYPE = self.ACTION_TYPE

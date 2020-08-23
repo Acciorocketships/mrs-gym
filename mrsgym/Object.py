@@ -1,4 +1,5 @@
 from mrsgym.BulletSim import *
+from mrsgym.Util import *
 import mrsgym
 import pybullet as p
 from scipy.spatial.transform import Rotation as R
@@ -39,33 +40,25 @@ class Object:
 		# pos
 		if pos is None:
 			pos = self.get_pos()
-		if isinstance(pos, torch.Tensor):
-			pos = pos.tolist()
 		# ori
 		if ori is None:
 			ori = self.get_ori()
-		if isinstance(ori, list):
-			ori = torch.tensor(ori)
+		ori = totensor(ori)
 		if ori.shape == (3,3):
 			r = R.from_matrix(ori)
 			ori = torch.tensor(r.as_quat())
 		elif ori.shape == (3,):
 			r = R.from_euler('xyz', ori, degrees=False)
 			ori = torch.tensor(r.as_quat())
-		ori = ori.tolist()
 		# vel
 		if vel is None:
 			vel = self.get_vel()
-		if isinstance(vel, torch.Tensor):
-			vel = vel.tolist()
 		# angvel
 		if angvel is None:
 			angvel = self.get_angvel()
-		if isinstance(angvel, torch.Tensor):
-			angvel = angvel.tolist()
 		# reset
-		p.resetBasePositionAndOrientation(self.uid, posObj=pos, ornObj=ori, physicsClientId=self.sim.id)
-		p.resetBaseVelocity(self.uid, linearVelocity=vel, angularVelocity=angvel, physicsClientId=self.sim.id)
+		p.resetBasePositionAndOrientation(self.uid, posObj=pos.tolist(), ornObj=ori.tolist(), physicsClientId=self.sim.id)
+		p.resetBaseVelocity(self.uid, linearVelocity=vel.tolist(), angularVelocity=angvel.tolist(), physicsClientId=self.sim.id)
 
 
 	def get_joint_info(self):
@@ -177,12 +170,9 @@ class Object:
 
 
 	def get_image(self, forward=torch.tensor([1.,0.,0.]), up=torch.tensor([0.,0.,1.]), offset=torch.zeros(3), body=True, fov=90., aspect=4/3, height=720):
-		if not isinstance(forward, torch.Tensor):
-			forward = torch.tensor(forward)
-		if not isinstance(up, torch.Tensor):
-			up = torch.tensor(up)
-		if not isinstance(offset, torch.Tensor):
-			offset = torch.tensor(offset)
+		forward = totensor(forward)
+		up = totensor(up)
+		offset = totensor(offset)
 		if body:
 			R = self.get_ori(mat=True)
 			forward = R @ forward
