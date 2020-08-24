@@ -11,6 +11,7 @@ def main():
 	sphere_transform = SphereTransform(radius=1.0, within=True)
 	xy_circle = TransformedDistribution(xy_normal, [sphere_transform]) # gaussian with sigma=1 bounded by a cirle of radius=1 in the xy direction
 	dist = CombinedDistribution([xy_circle, z], mixer='cat', dim=1)
+	import pdb; pdb.set_trace()
 	print(dist.sample())
 	# Environment
 	env = gym.make('mrs-v0', state_fn=state_fn, N_AGENTS=N, ACTION_TYPE='set_target_pos', START_POS=dist)

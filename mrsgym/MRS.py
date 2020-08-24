@@ -53,7 +53,7 @@ class MRS(gym.Env):
 			else:
 				self.ACTION_DIM = 4
 		self.observation_space = Box(np.full((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1), -np.inf), np.full((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1), np.inf))
-		self.action_space = Box(np.zeros((self.N_AGENTS,self.ACTION_DIM)), np.ones((self.N_AGENTS,self.ACTION_DIM)), dtype=np.float64)
+		self.action_space = Box(np.full((self.N_AGENTS,self.ACTION_DIM), -np.inf), np.full((self.N_AGENTS,self.ACTION_DIM), np.inf))
 		self.START_POS = Normal(torch.tensor([0.,0.,2.]), 1.0) # must have sample() method implemented. can generate size (N,3) or (3,)
 		self.START_ORI = torch.tensor([0,0,-np.pi/2,0,0,np.pi/2]) # shape (N,6) or (N,3) or (6,) or (3,).
 		if len(self.START_ORI.shape)==1:
