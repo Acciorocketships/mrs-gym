@@ -33,6 +33,14 @@ class BulletSim:
 		p.setTimeStep(timeStep=self.DT, physicsClientId=self.id)
 		p.setRealTimeSimulation(1 if self.REAL_TIME else 0, physicsClientId=self.id)
 
+
+	def stop(self):
+		try:
+			p.resetSimulation(self.id)
+			p.disconnect(self.id)
+		except:
+			pass
+
 	
 	def step_sim(self):
 		p.stepSimulation(physicsClientId=self.id)

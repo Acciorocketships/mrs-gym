@@ -19,7 +19,10 @@ class Object:
 
 
 	def __del__(self):
-		p.removeBody(self.uid, physicsClientId=self.sim.id)
+		try:
+			p.removeBody(self.uid, physicsClientId=self.sim.id)
+		except:
+			pass
 
 
 	@property
@@ -84,7 +87,8 @@ class Object:
 
 
 	def get_ori(self, mat=False):
-		quat = torch.tensor(p.getBasePositionAndOrientation(self.uid, physicsClientId=self.sim.id)[1])
+		state = p.getBasePositionAndOrientation(self.uid, physicsClientId=self.sim.id)
+		quat = torch.tensor(state[1])
 		r = R.from_quat(quat)
 		if mat:
 			return torch.tensor(r.as_matrix()).float()

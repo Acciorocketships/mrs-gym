@@ -91,7 +91,7 @@ class MRS(gym.Env):
 
 
 	def calc_Ak(self):
-		A = self.calc_A(self.X[-1]) # A: N x N
+		A = self.calc_A() # A: N x N
 		self.A.appendleft(A)
 		if len(self.A) > self.K_HOPS+1:
 			self.A.pop()
@@ -105,13 +105,13 @@ class MRS(gym.Env):
 		return torch.stack(list(self.A), dim=2).squeeze(2) # Ak: N x N x K+1
 
 
-	def calc_A(self, X):
+	def calc_A(self):
 		if self.COMM_RANGE == float('inf'):
-			return torch.ones(self.N_AGENTS, self.N_AGENTS)
-		copos = self.get_relative_position(X[:,:3])
+			return torch.ones(self.N_AGENTS, self.N_AGENTS) - torch.eye(self.N_AGENTS)
+		copos = self.get_relative_position()
 		codist = copos.norm(dim=2)
 		codist.diagonal().fill_(float('inf'))
-		A = (codist < self.COMM_RANGE).float()
+		A = (codist <= self.COMM_RANGE).float()
 		return A
 
 
@@ -154,10 +154,11 @@ class MRS(gym.Env):
 
 	# Input: N x 3
 	# Output: N x N x 3
-	def get_relative_position(self, X):
-		N = X.shape[0]
-		posi = X.unsqueeze(1).expand(-1,N,-1)
-		posj = X.unsqueeze(0).expand(N,-1,-1)
+	def get_relative_position(self):
+		pos = self.env.get_pos()
+		N = pos.shape[0]
+		posi = pos.unsqueeze(1).expand(-1,N,-1)
+		posj = pos.unsqueeze(0).expand(N,-1,-1)
 		return posi-posj
 
 
@@ -203,12 +204,17 @@ class MRS(gym.Env):
 		return self.env.get_data(name)
 
 
+	def __del__(self):
+		self.close()
+
+
 	def close(self):
-		pass
+		self.sim.stop()
 
 
 	def render(self, mode='bullet', close=False):
-		pass
+		if close:
+			self.close()
 
 	# waits for a given dt. If dt is not given, it uses the value from the simulator
 	def wait(self, dt=None):
@@ -228,6 +234,8 @@ class MRS(gym.Env):
 		# actions: N x ACTION_DIM
 		if actions is not None:
 			actions = totensor(actions)
+			if torch.any(np.isnan(actions)):
+				raise Exception('The given action contains NaN:\n %s' % str(actions))
 			self.last_action = actions
 			if ACTION_TYPE is None:
 				ACTION_TYPE = self.ACTION_TYPE
