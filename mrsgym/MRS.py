@@ -108,7 +108,7 @@ class MRS(gym.Env):
 	def calc_A(self):
 		if self.COMM_RANGE == float('inf'):
 			return torch.ones(self.N_AGENTS, self.N_AGENTS) - torch.eye(self.N_AGENTS)
-		copos = self.get_relative_position()
+		copos = self.get_relative_position(self.env.get_pos())
 		codist = copos.norm(dim=2)
 		codist.diagonal().fill_(float('inf'))
 		A = (codist <= self.COMM_RANGE).float()
@@ -154,8 +154,7 @@ class MRS(gym.Env):
 
 	# Input: N x 3
 	# Output: N x N x 3
-	def get_relative_position(self):
-		pos = self.env.get_pos()
+	def get_relative_position(self, pos):
 		N = pos.shape[0]
 		posi = pos.unsqueeze(1).expand(-1,N,-1)
 		posj = pos.unsqueeze(0).expand(N,-1,-1)
