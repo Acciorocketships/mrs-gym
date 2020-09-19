@@ -87,7 +87,7 @@ class MRS(gym.Env):
 
 
 	def get_Xk(self):
-		return torch.stack(list(self.X), dim=2).squeeze(2) # Xk: N x D x K+1
+		return torch.stack(list(self.X), dim=2) # Xk: N x D x K+1
 
 
 	def calc_Ak(self):
@@ -102,7 +102,7 @@ class MRS(gym.Env):
 
 
 	def get_Ak(self):
-		return torch.stack(list(self.A), dim=2).squeeze(2) # Ak: N x N x K+1
+		return torch.stack(list(self.A), dim=2) # Ak: N x N x K+1
 
 
 	def calc_A(self):
@@ -232,7 +232,7 @@ class MRS(gym.Env):
 			self.is_initialised = True
 		# actions: N x ACTION_DIM
 		if actions is not None:
-			actions = totensor(actions)
+			actions = totensor(actions).detach()
 			if torch.any(np.isnan(actions)):
 				raise Exception('The given action contains NaN:\n %s' % str(actions))
 			self.last_action = actions
