@@ -46,30 +46,6 @@ class BulletSim:
 		p.stepSimulation(physicsClientId=self.id)
 
 
-	def set_camera(self, pos, target=torch.zeros(3)):
-		if not isinstance(pos, torch.Tensor):
-			pos = torch.tensor(pos)
-		if not isinstance(target, torch.Tensor):
-			target = torch.tensor(target)
-		disp = target - pos
-		dist = disp.norm()
-		yaw = np.arctan2(-disp[0],disp[1]) * 180/np.pi
-		pitch = np.arctan2(disp[2],np.sqrt(disp[0]**2+disp[1]**2)) * 180/np.pi
-		p.resetDebugVisualizerCamera(cameraDistance=dist, cameraYaw=yaw, cameraPitch=pitch, cameraTargetPosition=target.tolist(), physicsClientId=self.id)
-
-
-	def add_line(start, end, name="line", width=0.1, lifetime=0., colour=torch.tensor([1.,0.,0.])):
-		if not isinstance(start, torch.Tensor):
-			start = torch.tensor(start)
-		if not isinstance(end, torch.Tensor):
-			end = torch.tensor(end)
-		if not isinstance(colour, torch.Tensor):
-			colour = torch.tensor(colour)
-		if not hasattr(self, "line_names"):
-			self.line_names = {}
-		uid = self.line_names.get(name, -1)
-		new_uid = p.addUserDebugLine(lineFromXYZ=start.tolist(), lineToXYZ=end.tolist(), lineColorRGB=colour.tolist(), lineWidth=width, lifeTime=lifetime, replaceItemUniqueId=uid, physicsClientId=self.id)
-		self.line_names[name] = new_uid
 
 
 class DefaultSim:

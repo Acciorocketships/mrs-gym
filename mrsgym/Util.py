@@ -2,7 +2,6 @@ import numpy as np
 import torch
 from enum import IntEnum
 import inspect
-from ray.rllib.models.torch.torch_action_dist import TorchDistributionWrapper
 
 def wrap_angle(angle, margin=np.pi):
 	if isinstance(angle, np.ndarray) or isinstance(angle, torch.Tensor):
@@ -258,41 +257,4 @@ class Key(IntEnum):
 	seven = 55
 	eight = 56
 	nine = 57
-
-
-
-def rllib_distribution(torch_distribution):
-
-	def num_arguments(dist):
-		params = inspect.signature(dist).parameters
-		if "logits" in params:
-			return 1
-		defaults = list(map(lambda param: param.default == inspect._empty, params.values()))
-		return sum(defaults)
-
-	class CustomDistribution(TorchDistributionWrapper):
-
-		@staticmethod
-		def required_model_output_shape(action_space, model_config):
-			num_dist_params = num_arguments(torch_distribution)
-			return int(np.prod(action_space.shape) * num_dist_params)
-
-		def __init__(self, inputs, model):
-			super(CustomDistribution, self).__init__(inputs, model)
-			num_dist_params = num_arguments(torch_distribution)
-			inputs = totensor(inputs)
-			chunk_size = int(inputs.shape[-1] / num_dist_params)
-			arguments = torch.split(inputs, chunk_size, dim=-1)
-			self.dist = torch_distribution(*arguments)
-
-		def logp(self, actions):
-			return super().logp(actions).sum(-1)
-
-		def entropy(self):
-			return super().entropy().sum(-1)
-
-		def kl(self, other):
-			return super().kl(other).sum(-1)
-
-	return CustomDistribution
 

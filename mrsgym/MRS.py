@@ -52,8 +52,8 @@ class MRS(gym.Env):
 				self.ACTION_DIM = 3
 			else:
 				self.ACTION_DIM = 4
-		self.observation_space = Box(np.full((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1), -np.inf), np.full((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1), np.inf))
-		self.action_space = Box(np.full((self.N_AGENTS,self.ACTION_DIM), -np.inf), np.full((self.N_AGENTS,self.ACTION_DIM), np.inf))
+		self.observation_space = Box(np.full((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1), -np.inf, dtype=np.float32), np.full((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1), np.inf, dtype=np.float32))
+		self.action_space = Box(np.full((self.N_AGENTS,self.ACTION_DIM), -np.inf, dtype=np.float32), np.full((self.N_AGENTS,self.ACTION_DIM), np.inf, dtype=np.float32))
 		self.START_POS = Normal(torch.tensor([0.,0.,2.]), 1.0) # must have sample() method implemented. can generate size (N,3) or (3,)
 		self.START_ORI = torch.tensor([0,0,-np.pi/2,0,0,np.pi/2]) # shape (N,6) or (N,3) or (6,) or (3,).
 		if len(self.START_ORI.shape)==1:
@@ -163,6 +163,7 @@ class MRS(gym.Env):
 
 	# Resets the agents (defaults will be used for parameters that aren't given)
 	def reset(self, pos=None, ori=None, vel=None, angvel=None):
+		self.is_initialised = True
 		if pos is None:
 			pos = self.generate_start_pos()
 		if ori is None:
@@ -229,7 +230,6 @@ class MRS(gym.Env):
 		# init
 		if not self.is_initialised:
 			self.reset()
-			self.is_initialised = True
 		# actions: N x ACTION_DIM
 		if actions is not None:
 			actions = totensor(actions).detach()
@@ -241,7 +241,7 @@ class MRS(gym.Env):
 			self.env.set_actions(actions, behaviour=ACTION_TYPE)
 		self.env.update_controlled()
 		if self.update_fn is not None:
-			self.update_fn(self.env)
+			self.update_fn(self.env, self.last_obs, self.last_action)
 		self.sim.step_sim()
 		## Collect Data ##
 		Xk = self.calc_Xk()

@@ -32,8 +32,9 @@ class MRS_RLlib_MultiAgent(MRS_RLlib, MultiAgentEnv):
 		params = MRS_RLlib_MultiAgent.defaults.copy()
 		params.update(config)
 		super(MRS_RLlib_MultiAgent, self).__init__(params)
-		self.observation_space = Box(self.observation_space.low[0,:,0], self.observation_space.high[0,:,0], dtype=np.float64)
-		self.action_space = Box(self.action_space.low[0,:], self.action_space.high[0,:], dtype=np.float64)
+		import pdb; pdb.set_trace()
+		self.observation_space = Box(self.observation_space.low[0,:,0], self.observation_space.high[0,:,0], dtype=np.float32)
+		self.action_space = Box(self.action_space.low[0,:], self.action_space.high[0,:], dtype=np.float32)
 		agent_names = [("agent%d" % (idx+1)) for idx in range(len(self.env.agents))]
 		self.names_dict = {agent_names[idx]: idx for idx in range(len(agent_names))}
 		self.env.names_dict = self.names_dict

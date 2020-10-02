@@ -10,7 +10,7 @@ def main():
 		env.wait()
 
 
-def update(env):
+def update(env, obs, action):
 	contact = env.agents[0].get_contact_points(env.agents[1], body=False)
 	dist = env.agents[0].get_dist(env.agents[1], body=False)
 	print(dict2str(dist))

@@ -15,6 +15,7 @@ class Environment:
 		self.object_dict = {} # dict of uid to all types of objects in env (agents, objects, controlled)
 		self.agent_idxs = {} # dict of agent objects to their idx in self.agents
 		self.data = {}
+		self.debug_names = {}
 
 
 	def init_agents(self, N):
@@ -188,6 +189,79 @@ class Environment:
 				results['target_obj'] = self.object_dict.get(ray[0][0], None)
 				results['target_normal'] = torch.tensor(ray[0][4])
 				return results
+
+
+	def set_camera(self, pos=None, target=torch.zeros(3)):
+		if pos is None:
+			camera_params = p.getDebugVisualizerCamera(physicsClientId=self.sim.id)
+			camera_forward = torch.tensor(camera_params[5])
+			camera_target = torch.tensor(camera_params[-1])
+			target_dist = camera_params[-2]
+			pos = camera_target - target_dist * camera_forward
+		if isinstance(target, Object):
+			target = target.get_pos()
+		pos = totensor(pos)
+		target = totensor(target)
+		disp = target - pos
+		dist = disp.norm()
+		yaw = np.arctan2(-disp[0],disp[1]) * 180/np.pi
+		pitch = np.arctan2(disp[2],np.sqrt(disp[0]**2+disp[1]**2)) * 180/np.pi
+		p.resetDebugVisualizerCamera(cameraDistance=dist, cameraYaw=yaw, cameraPitch=pitch, cameraTargetPosition=target.tolist(), physicsClientId=self.sim.id)
+
+
+	def add_line(self, start, end, parent=None, name="line", width=1.0, lifetime=0., colour=[0.,0.,0.]):
+		if isinstance(start, Object):
+			start = start.get_pos()
+		if isinstance(end, Object):
+			end = end.get_pos()
+		start = totensor(start)
+		end = totensor(end)
+		colour = totensor(colour)
+		uid = self.debug_names.get(name, -1)
+		if parent is not None:
+			new_uid = p.addUserDebugLine(lineFromXYZ=start.tolist(), lineToXYZ=end.tolist(), lineColorRGB=colour.tolist(), lineWidth=width, lifeTime=lifetime, parentObjectUniqueId=parent.uid, replaceItemUniqueId=uid, physicsClientId=self.sim.id)
+		else:
+			new_uid = p.addUserDebugLine(lineFromXYZ=start.tolist(), lineToXYZ=end.tolist(), lineColorRGB=colour.tolist(), lineWidth=width, lifeTime=lifetime, replaceItemUniqueId=uid, physicsClientId=self.sim.id)
+		self.debug_names[name] = new_uid
+
+
+	def add_text(self, text, pos=None, parent=None, name="text", size=1.0, lifetime=0., colour=[0.,0.,0.]):
+		# TODO: set pos to right in front of the camera if it is None
+		pos = totensor(pos)
+		colour = totensor(colour)
+		uid = self.debug_names.get(name, -1)
+		if parent is not None:
+			new_uid = p.addUserDebugText(text=text, textPosition=pos.tolist(), textColorRGB=colour.tolist(), textSize=size, lifeTime=lifetime, parentObjectUniqueId=parent.uid, replaceItemUniqueId=uid, physicsClientId=self.sim.id)
+		else:
+			new_uid = p.addUserDebugText(text=text, textPosition=pos.tolist(), textColorRGB=colour.tolist(), textSize=size, lifeTime=lifetime, replaceItemUniqueId=uid, physicsClientId=self.sim.id)
+		self.debug_names[name] = new_uid
+
+
+	def add_param(self, name, low=0., high=1., start=None):
+		if start is None:
+			start = low
+		new_uid = p.addUserDebugParameter(paramName=name, rangeMin=low, rangeMax=high, startValue=start, physicsClientId=self.sim.id)
+		self.debug_names[name] = new_uid
+
+
+	def read_param(self, name):
+		uid = self.debug_names[name]
+		value = p.readUserDebugParameter(itemUniqueId=uid, physicsClientId=self.sim.id)
+		return value
+
+
+	def remove_debug(self, name):
+		uid = self.debug_names[name]
+		p.removeUserDebugItem(itemUniqueId=uid, physicsClientId=self.sim.id)
+		del self.debug_names[uid]
+
+
+	def set_colour(self, obj, colour=None):
+		if colour is not None:
+			colour = totensor(colour)
+			p.setDebugObjectColor(objectUniqueId=obj.uid, linkIndex=-1, objectDebugColorRGB=colour.tolist(), physicsClientId=self.sim.id)
+		else: # if colour is none, it is reset to the default
+			p.setDebugObjectColor(objectUniqueId=obj.uid, linkIndex=-1, physicsClientId=self.sim.id)
 
 
 

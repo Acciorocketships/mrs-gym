@@ -10,7 +10,7 @@ def main():
 		env.wait()
 
 
-def update(env):
+def update(env, obs, action):
 	objects = env.agents[0].get_closest_objects(radius=3.0)
 	object_dists = {obj: env.agents[0].get_dist(obj)['distance'] for obj in objects}
 	print(dict2str(object_dists))
