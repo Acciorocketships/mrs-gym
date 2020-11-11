@@ -247,6 +247,7 @@ class MRS(gym.Env):
 		Xk = self.calc_Xk()
 		if self.RETURN_A:
 			Ak = self.calc_Ak()
+			self.env.draw_links(Ak[:,:,0])
 		# reward: scalar
 		reward = self.reward_fn(self.env, self.last_obs, self.last_action, Xk)
 		self.last_obs = Xk

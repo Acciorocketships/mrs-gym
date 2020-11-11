@@ -122,8 +122,19 @@ class Environment:
 		return torch.stack([agent.get_angvel() for agent in self.agents], dim=0)
 
 
-	def set_collisions(obj1, obj2, collisions=False):
+	def set_collisions(self, obj1, obj2, collisions=False):
 		p.setCollisionFilterPair(bodyUniqueIdA=obj1.uid, bodyUniqueIdB=obj2.uid, linkIndexA=-1, linkIndexB=-1, enableCollision=(1 if collisions else 0), physicsClientId=self.sim.id)
+
+
+	def draw_links(self, A):
+		N = A.shape[0]
+		for i in range(N):
+			for j in range(i):
+				name = "CommLink({},{})".format(i,j)
+				if A[i,j] > 0:
+					self.add_line(start=self.agents[i], end=self.agents[j], name=name, lifetime=0., colour=[1.,1.,0.])
+				else:
+					self.remove_debug(name)
 
 
 	def get_image(self, pos, forward, up=None, fov=90., aspect=4/3, height=720):
@@ -191,12 +202,27 @@ class Environment:
 				return results
 
 
-	def set_camera(self, pos=None, target=torch.zeros(3)):
+	def get_camera_pos(self):
+		camera_params = p.getDebugVisualizerCamera(physicsClientId=self.sim.id)
+		camera_forward = torch.tensor(camera_params[5])
+		camera_left = -torch.tensor(camera_params[6]); camera_left /= camera_left.norm()
+		camera_up = torch.tensor(camera_params[7]); camera_up /= camera_up.norm()
+		R = torch.stack([camera_forward, camera_left, camera_up], dim=1)
+		camera_target = torch.tensor(camera_params[-1])
+		target_dist = camera_params[-2]
+		camera_pos_world = camera_target - target_dist * camera_forward
+		return camera_pos_world, R
+
+
+	def set_camera(self, pos=None, target=torch.zeros(3), dist=None):
 		if pos is None:
 			camera_params = p.getDebugVisualizerCamera(physicsClientId=self.sim.id)
 			camera_forward = torch.tensor(camera_params[5])
 			camera_target = torch.tensor(camera_params[-1])
-			target_dist = camera_params[-2]
+			if dist is None:
+				target_dist = camera_params[-2]
+			else:
+				target_dist = dist
 			pos = camera_target - target_dist * camera_forward
 		if isinstance(target, Object):
 			target = target.get_pos()
@@ -225,9 +251,16 @@ class Environment:
 		self.debug_names[name] = new_uid
 
 
-	def add_text(self, text, pos=None, parent=None, name="text", size=1.0, lifetime=0., colour=[0.,0.,0.]):
+	def add_text(self, text, pos=None, poscam=[1,1.25,-0.95], parent=None, name="text", size=1.0, lifetime=0., colour=[0.,0.,0.]):
 		# TODO: set pos to right in front of the camera if it is None
-		pos = totensor(pos)
+		if pos is None:
+			camera_pos, R = self.get_camera_pos()
+			forward = R[:,0]
+			left = R[:,1]
+			up = R[:,2]
+			pos = camera_pos + poscam[0] * forward + poscam[1] * left + poscam[2] * up
+		else:
+			pos = totensor(pos)
 		colour = totensor(colour)
 		uid = self.debug_names.get(name, -1)
 		if parent is not None:
@@ -251,9 +284,12 @@ class Environment:
 
 
 	def remove_debug(self, name):
-		uid = self.debug_names[name]
-		p.removeUserDebugItem(itemUniqueId=uid, physicsClientId=self.sim.id)
-		del self.debug_names[uid]
+		if name in self.debug_names:
+			uid = self.debug_names[name]
+			p.removeUserDebugItem(itemUniqueId=uid, physicsClientId=self.sim.id)
+			del self.debug_names[name]
+			return True
+		return False
 
 
 	def set_colour(self, obj, colour=None):
@@ -264,4 +300,6 @@ class Environment:
 			p.setDebugObjectColor(objectUniqueId=obj.uid, linkIndex=-1, physicsClientId=self.sim.id)
 
 
+	def record(self, filename="demo.mp4"):
+		p.startStateLogging(loggingType=p.STATE_LOGGING_VIDEO_MP4, fileName=filename, physicsClientId=self.sim.id)
 

@@ -43,6 +43,7 @@ class Object:
 		# pos
 		if pos is None:
 			pos = self.get_pos()
+		pos = totensor(pos)
 		# ori
 		if ori is None:
 			ori = self.get_ori()
