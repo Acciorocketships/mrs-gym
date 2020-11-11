@@ -14,9 +14,10 @@ class MRS(gym.Env):
 	metadata = {'render.modes': ['headless', 'bullet']}
 
 	# state_fn:: input: Quadcopter; output: size D tensor
-	# reward_fn:: input: Environment; output: scalar
-	# done_fn:: input: Environment, steps_since_reset; output: bool
-	# info_fn:: input: Environment; output: dict
+	# reward_fn:: input: Environment, X, A, Xlast, action, steps_since_reset; output: scalar
+	# done_fn:: input: Environment, X, A, Xlast, action, steps_since_reset; output: bool
+	# info_fn:: input: Environment, X, A, Xlast, action, steps_since_reset; output: dict
+	# update_fn:: input: Environment, X, A, Xlast, action, steps_since_reset
 	def __init__(self, state_fn=None, reward_fn=None, done_fn=None, info_fn=None, update_fn=None, start_fn=None, env='simple', **kwargs):
 		super(MRS, self).__init__()
 		# Constants
@@ -30,13 +31,13 @@ class MRS(gym.Env):
 		self.RETURN_EVENTS = False
 		self.ACTION_TYPE = "set_target_vel"
 		self.HEADLESS = False
-		self.MAX_TIMESTEPS = 1000
+		self.MAX_TIMESTEPS = float('inf')
 		self.set_constants(kwargs)
 		# Inputs
 		self.state_fn = state_fn
-		self.reward_fn = reward_fn if (reward_fn is not None) else (lambda env, obs, action, obs_next: 0.0)
-		self.done_fn = done_fn if (done_fn is not None) else (lambda env, obs, steps: steps >= self.MAX_TIMESTEPS)
-		self.info_fn = info_fn if (info_fn is not None) else (lambda env: {})
+		self.reward_fn = reward_fn if (reward_fn is not None) else (lambda **kwargs: 0.0)
+		self.done_fn = done_fn if (done_fn is not None) else (lambda **kwargs: kwargs["steps_since_reset"] >= self.MAX_TIMESTEPS)
+		self.info_fn = info_fn if (info_fn is not None) else (lambda **kwargs: {})
 		self.update_fn = update_fn
 		self.start_fn = start_fn
 		if isinstance(env, Environment):
@@ -240,26 +241,25 @@ class MRS(gym.Env):
 				ACTION_TYPE = self.ACTION_TYPE
 			self.env.set_actions(actions, behaviour=ACTION_TYPE)
 		self.env.update_controlled()
-		if self.update_fn is not None:
-			self.update_fn(self.env, self.last_obs, self.last_action)
 		self.sim.step_sim()
 		## Collect Data ##
 		Xk = self.calc_Xk()
-		if self.RETURN_A:
-			Ak = self.calc_Ak()
-			self.env.draw_links(Ak[:,:,0])
+		Ak = self.calc_Ak()
+		# update function
+		self.env.draw_links(Ak[:,:,0])
+		if self.update_fn is not None:
+			self.update_fn(env=self.env, X=Xk, A=Ak, Xlast=self.last_obs, action=self.last_action, steps_since_reset=self.steps_since_reset)
 		# reward: scalar
-		reward = self.reward_fn(self.env, self.last_obs, self.last_action, Xk)
+		reward = self.reward_fn(env=self.env, X=Xk, A=Ak, Xlast=self.last_obs, action=self.last_action, steps_since_reset=self.steps_since_reset)
 		self.last_obs = Xk
 		# info: dict
-		info = self.info_fn(self.env)
-		if self.RETURN_A:
-			info["A"] = Ak
+		info = self.info_fn(env=self.env, X=Xk, A=Ak, Xlast=self.last_obs, action=self.last_action, steps_since_reset=self.steps_since_reset)
+		info["A"] = Ak
 		if self.RETURN_EVENTS:
 			info["keyboard_events"] = self.env.get_keyboard_events()
 			info["mouse_events"] = self.env.get_mouse_events()
 		# done: N (bool tensor)
-		done = self.done_fn(self.env, Xk, self.steps_since_reset)
+		done = self.done_fn(env=self.env, X=Xk, A=Ak, Xlast=self.last_obs, action=self.last_action, steps_since_reset=self.steps_since_reset)
 		# time
 		self.last_loop_time = time.monotonic()
 		self.steps_since_reset += 1
