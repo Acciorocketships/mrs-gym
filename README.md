@@ -81,7 +81,7 @@ if __name__ == '__main__':
 	
 	Example Usage: 
 	```python
-	mrsenv.reset(vel=torch.tensor([1.,0.,0.]).expand(N_AGENTS,-1)
+	mrsenv.reset(vel=torch.tensor([1.,0.,0.].expand(N_AGENTS,-1))
 	```
 	
 	Description: uses START_POS and START_ORI to reset the states of all agents. In addition, pos, vel, ori, and angvel can be given as optional arguments. This will override the default reset value
@@ -96,7 +96,7 @@ if __name__ == '__main__':
 
 	Example Usage: 
 	```python
-	mrsenv.set(ori=torch.tensor([0.,0.,0.]).expand(N_AGENTS,-1)
+	mrsenv.set(ori=torch.tensor([0.,0.,0.].expand(N_AGENTS,-1))
 	```
 	Description: The same as reset, except if the optional arguments are not given, then those components of the state will not be changed. When called with no arguments, reset() sets all of the agents to their default values, while set() does nothing.
 	
