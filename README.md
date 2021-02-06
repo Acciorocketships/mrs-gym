@@ -6,7 +6,8 @@ pip3 install -e .
 ```
 
 ## Demo
-![Position Control Demo](demo.gif)
+![Position Control Demo](images/position_control.gif)
+![Custom Environment Demo](images/custom_environment.gif)
 
 ## Example
 ```python
@@ -45,7 +46,7 @@ if __name__ == '__main__':
 	Arguments:
 	- state_fn: (function) [required] specifies the content of the obs output of mrsenv.step(actions). Takes an agent (Quadcopter) class as an input, and produces a one-dimensional (STATE_SIZE) tensor as an output.
 	- reward_fn: (function) specifies the content of the reward output of mrsenv.step(actions). The input is env (an instance of the Environment object), X (the joint observation with the last K_HOPS+1 timesteps of data), A (the adjacency matrix, computed using COMM_RANGE), Xlast (the X value from the last timestep), action (the action that was used in the last timestep), and steps_since_reset (the number of timesteps since the simulation was set/reset). The output can be a scalar or a tensor.
-	- done_fn: (function) done_fn(env, s, t) specifies the termination conditions. The input is env (an instance of the Environment object), X (the joint observation with the last K_HOPS+1 timesteps of data), A (the adjacency matrix, computed using COMM_RANGE), Xlast (the X value from the last timestep), action (the action that was used in the last timestep), and steps_since_reset (the number of timesteps since the simulation was set/reset). The output is a bool.
+	- done_fn: (function) specifies the termination conditions. The input is env (an instance of the Environment object), X (the joint observation with the last K_HOPS+1 timesteps of data), A (the adjacency matrix, computed using COMM_RANGE), Xlast (the X value from the last timestep), action (the action that was used in the last timestep), and steps_since_reset (the number of timesteps since the simulation was set/reset). The output is a bool.
 	- info_fn: (function) specifies the content of the info output of mrsenv.step(actions). The input is env (an instance of the Environment object), X (the joint observation with the last K_HOPS+1 timesteps of data), A (the adjacency matrix, computed using COMM_RANGE), Xlast (the X value from the last timestep), action (the action that was used in the last timestep), and steps_since_reset (the number of timesteps since the simulation was set/reset). The output is a dict containing any data that might be useful.
 	- update_fn: (function) This function allows the user to specify any extra behaviour they wish to run every time the simulation is stepped. The update_fn could be used to add aerodynamics disturbances to the objects in the environment, change the position and orientation of the camera view, add/remove objects or agents, etc. Takes the env (Environment) as an input. The input is env (an instance of the Environment object), X (the joint observation with the last K_HOPS+1 timesteps of data), A (the adjacency matrix, computed using COMM_RANGE), Xlast (the X value from the last timestep), action (the action that was used in the last timestep), and steps_since_reset (the number of timesteps since the simulation was set/reset).
 	- env: (Environment OR str) defines the environment, which contains all objects and agents. Choose from:
