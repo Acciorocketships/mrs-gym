@@ -8,9 +8,11 @@ def main():
 	actions = torch.zeros(N,3)
 	for t in range(100000):
 		X, reward, done, info = env.step(actions)
-		actions = 3 * key_to_action(info["keyboard_events"]).expand(N,-1)
+		actions_world = key_to_action(info["keyboard_events"]).expand(N,-1)
+		actions = 3 * rotate_action(actions_world, env.env)
 		if t % 100 == 0:
 			add_random_object(env.env)
+		set_camera(env.env)
 		env.wait()
 
 
@@ -22,6 +24,34 @@ def generate_environment():
 	ground = Object(uid="plane.urdf", env=environment, sim=sim, pos=torch.tensor([0,0,0]), ori=torch.tensor([0,0,0]))
 	environment.add_object(ground)
 	return environment
+
+
+def set_camera(env):
+	back_dist = 5.
+	up_dist = 3.
+	movement = 0.3
+	cam_curr_pos = env.get_camera_pos()[0]
+	agent_pos = env.agents[0].get_pos()
+	vel = env.agents[0].get_vel(); vel[2] = 0
+	forward = agent_pos - cam_curr_pos; forward[2] = 0; forward /= forward.norm()
+	if vel.norm() != 0:
+		forward = vel / vel.norm()
+	modifier = max(vel.norm(), 1)
+	movement *= modifier
+	cam_target_pos = agent_pos - forward * back_dist + torch.tensor([0,0,up_dist])
+	cam_new_pos = movement * (cam_target_pos - cam_curr_pos) + cam_curr_pos
+	env.set_camera(pos=cam_new_pos, target=agent_pos)
+
+
+def rotate_action(action, env):
+	cam_curr_pos = env.get_camera_pos()[0]
+	agent_pos = env.agents[0].get_pos()
+	forward = agent_pos - cam_curr_pos; forward[2] = 0; forward /= forward.norm()
+	up = torch.tensor([0.,0.,1.])
+	left = torch.cross(up, forward)
+	R = torch.stack([forward, left, up], dim=1)
+	action_body = (R @ action.T).T
+	return action_body
 
 
 def add_random_object(env):
@@ -57,7 +87,7 @@ def key_to_action(keys):
 
 
 def state_fn(quad):
-	return quad.get_vel()
+	return quad.get_pos()
 
 
 if __name__ == '__main__':
