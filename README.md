@@ -7,7 +7,7 @@ pip3 install -e .
 
 ## Demo
 ![Position Control Demo](images/position_control.gif)
-![Custom Environment Demo](images/custom_environment.gif)
+![Custom Environment Demo](images/custom_env.gif)
 
 ## Example
 ```python
