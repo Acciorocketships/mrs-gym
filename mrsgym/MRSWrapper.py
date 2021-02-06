@@ -22,17 +22,12 @@ class MRS_RLlib(MRS):
 
 class MRS_RLlib_MultiAgent(MRS_RLlib, MultiAgentEnv):
 
-	defaults = {
-		"reward_fn": lambda env, obs, action, obs_next: {name: 0.0 for name in obs.keys()},
-		"done_fn": lambda env, obs, steps: {"__all__": False},
-		"K_HOPS": 0,
-	}
+	defaults = {}
 
 	def __init__(self, config={}):
 		params = MRS_RLlib_MultiAgent.defaults.copy()
 		params.update(config)
 		super(MRS_RLlib_MultiAgent, self).__init__(params)
-		import pdb; pdb.set_trace()
 		self.observation_space = Box(self.observation_space.low[0,:,0], self.observation_space.high[0,:,0], dtype=np.float32)
 		self.action_space = Box(self.action_space.low[0,:], self.action_space.high[0,:], dtype=np.float32)
 		agent_names = [("agent%d" % (idx+1)) for idx in range(len(self.env.agents))]

@@ -2,7 +2,7 @@ from mrsgym import *
 import gym
 
 def main():
-	N = 3
+	N = 2
 	env = gym.make('mrs-v0', state_fn=state_fn, N_AGENTS=N, ACTION_TYPE='set_target_pos', update_fn=update)
 	actions = torch.stack([quad.get_pos() for quad in env.get_agents()], dim=0)
 	while True:
@@ -10,10 +10,13 @@ def main():
 		env.wait()
 
 
-def update(env, obs, action):
-	objects = env.agents[0].get_closest_objects(radius=3.0)
-	object_dists = {obj: env.agents[0].get_dist(obj)['distance'] for obj in objects}
-	print(dict2str(object_dists))
+def update(**kwargs):
+	env = kwargs['env']
+	contact = env.agents[0].get_contact_points(env.agents[1], body=False)
+	dist = env.agents[0].get_dist(env.agents[1], body=False)
+	print(dict2str(dist))
+	if contact['distance'].shape[0] != 0:
+		print(dict2str(contact))
 
 
 def state_fn(quad):

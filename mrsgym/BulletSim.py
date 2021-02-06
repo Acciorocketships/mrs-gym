@@ -29,6 +29,7 @@ class BulletSim:
 			self.id = p.connect(p.DIRECT)
 		else:
 			self.id = p.connect(p.GUI)
+			p.configureDebugVisualizer(flag=p.COV_ENABLE_GUI, enable=0, physicsClientId=self.id)
 		p.setGravity(gravX=0, gravY=0, gravZ=-self.GRAVITY, physicsClientId=self.id)
 		p.setTimeStep(timeStep=self.DT, physicsClientId=self.id)
 		p.setRealTimeSimulation(1 if self.REAL_TIME else 0, physicsClientId=self.id)
