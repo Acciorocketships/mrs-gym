@@ -44,10 +44,10 @@ if __name__ == '__main__':
 	
 	Arguments:
 	- state_fn: (function) [required] specifies the content of the obs output of mrsenv.step(actions). Takes an agent (Quadcopter) class as an input, and produces a one-dimensional (STATE_SIZE) tensor as an output.
-	- reward_fn: (function) reward_fn(env, s, a, s') specifies the content of the reward output of mrsenv.step(actions). Takes the env (Environment), the current observation ((N_AGENTS x STATE_SIZE x K_HOPS+1) tensor), the current action ((N_AGENTS x ACTION_DIM) tensor), and the resulting next observation ((N_AGENTS x STATE_SIZE x K_HOPS+1) tensor) as an input, and produces an output of any type (default is 0.0).
-	- done_fn: (function) done_fn(env, s, t) specifies the termination conditions. Takes the env (Environment), the observation ((N_AGENTS x STATE_SIZE x K_HOPS+1) tensor), and the number of steps since the last reset (int) as an input, and produces a bool as the output. The default behaviour is to return True when the time steps since the last reset reaches MAX_TIMESTEPS.
-	- info_fn: (function) specifies the content of the info output of mrsenv.step(actions). Takes an instance of the env (Environment) as an input, and produces a dict as an output.
-	- update_fn: (function) This function allows the user to specify any extra behaviour they wish to run every time the simulation is stepped. The update_fn could be used to add aerodynamics disturbances to the objects in the environment, change the position and orientation of the camera view, add/remove objects or agents, etc. Takes the env (Environment) as an input.
+	- reward_fn: (function) specifies the content of the reward output of mrsenv.step(actions). The input is env (an instance of the Environment object), X (the joint observation with the last K_HOPS+1 timesteps of data), A (the adjacency matrix, computed using COMM_RANGE), Xlast (the X value from the last timestep), action (the action that was used in the last timestep), and steps_since_reset (the number of timesteps since the simulation was set/reset). The output can be a scalar or a tensor.
+	- done_fn: (function) done_fn(env, s, t) specifies the termination conditions. The input is env (an instance of the Environment object), X (the joint observation with the last K_HOPS+1 timesteps of data), A (the adjacency matrix, computed using COMM_RANGE), Xlast (the X value from the last timestep), action (the action that was used in the last timestep), and steps_since_reset (the number of timesteps since the simulation was set/reset). The output is a bool.
+	- info_fn: (function) specifies the content of the info output of mrsenv.step(actions). The input is env (an instance of the Environment object), X (the joint observation with the last K_HOPS+1 timesteps of data), A (the adjacency matrix, computed using COMM_RANGE), Xlast (the X value from the last timestep), action (the action that was used in the last timestep), and steps_since_reset (the number of timesteps since the simulation was set/reset). The output is a dict containing any data that might be useful.
+	- update_fn: (function) This function allows the user to specify any extra behaviour they wish to run every time the simulation is stepped. The update_fn could be used to add aerodynamics disturbances to the objects in the environment, change the position and orientation of the camera view, add/remove objects or agents, etc. Takes the env (Environment) as an input. The input is env (an instance of the Environment object), X (the joint observation with the last K_HOPS+1 timesteps of data), A (the adjacency matrix, computed using COMM_RANGE), Xlast (the X value from the last timestep), action (the action that was used in the last timestep), and steps_since_reset (the number of timesteps since the simulation was set/reset).
 	- env: (Environment OR str) defines the environment, which contains all objects and agents. Choose from:
 		1. Environment: uses a user-defined environment. See the Environment class for how to construct it manually
 		2. "simple": creates a world with N_AGENTS agents and a plane at z=0. This is the default
@@ -81,7 +81,7 @@ if __name__ == '__main__':
 	
 	Example Usage: 
 	```python
-	mrsenv.reset(vel=torch.tensor([1.,0.,0.]).expand(N_AGENTS,-1)
+	mrsenv.reset(vel=torch.tensor([1.,0.,0.].expand(N_AGENTS,-1))
 	```
 	
 	Description: uses START_POS and START_ORI to reset the states of all agents. In addition, pos, vel, ori, and angvel can be given as optional arguments. This will override the default reset value
@@ -96,7 +96,7 @@ if __name__ == '__main__':
 
 	Example Usage: 
 	```python
-	mrsenv.set(ori=torch.tensor([0.,0.,0.]).expand(N_AGENTS,-1)
+	mrsenv.set(ori=torch.tensor([0.,0.,0.].expand(N_AGENTS,-1))
 	```
 	Description: The same as reset, except if the optional arguments are not given, then those components of the state will not be changed. When called with no arguments, reset() sets all of the agents to their default values, while set() does nothing.
 	
