@@ -88,7 +88,7 @@ class MRS(gym.Env):
 
 
 	def get_Xk(self):
-		return torch.stack(list(self.X), dim=2) # Xk: N x D x K+1
+		return torch.stack(list(self.X), dim=0) # Xk: K+1 x N x D
 
 
 	def calc_Ak(self):
@@ -103,7 +103,7 @@ class MRS(gym.Env):
 
 
 	def get_Ak(self):
-		return torch.stack(list(self.A), dim=2) # Ak: N x N x K+1
+		return torch.stack(list(self.A), dim=0) # Ak: K+1 x N x N
 
 
 	def calc_A(self):
