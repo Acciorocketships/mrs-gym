@@ -246,7 +246,7 @@ class MRS(gym.Env):
 		Xk = self.calc_Xk()
 		Ak = self.calc_Ak()
 		# update function
-		self.env.draw_links(Ak[:,:,0])
+		self.env.draw_links(Ak[0,:,:])
 		if self.update_fn is not None:
 			self.update_fn(env=self.env, X=Xk, A=Ak, Xlast=self.last_obs, action=self.last_action, steps_since_reset=self.steps_since_reset)
 		# reward: scalar
