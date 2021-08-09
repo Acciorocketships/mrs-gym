@@ -48,13 +48,8 @@ class MRS(gym.Env):
 			self.sim = BulletSim(**kwargs)
 			self.env = env_generator(envtype=env, N=self.N_AGENTS, sim=self.sim)
 		# Constants that depend on other constants
-		if self.ACTION_DIM == 0:
-			if "set_target" in self.ACTION_TYPE:
-				self.ACTION_DIM = 3
-			else:
-				self.ACTION_DIM = 4
-		self.observation_space = Box(np.full((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1), -np.inf, dtype=np.float32), np.full((self.N_AGENTS,self.STATE_SIZE,self.K_HOPS+1), np.inf, dtype=np.float32))
-		self.action_space = Box(np.full((self.N_AGENTS,self.ACTION_DIM), -np.inf, dtype=np.float32), np.full((self.N_AGENTS,self.ACTION_DIM), np.inf, dtype=np.float32))
+		self.observation_space = Box(np.full((self.K_HOPS+1 * self.N_AGENTS * self.STATE_SIZE), -np.inf, dtype=np.float32), np.full((self.K_HOPS+1 * self.N_AGENTS * self.STATE_SIZE), np.inf, dtype=np.float32))
+		self.action_space = Box(np.full((self.N_AGENTS * self.ACTION_DIM), -np.inf, dtype=np.float32), np.full((self.N_AGENTS * self.ACTION_DIM), np.inf, dtype=np.float32))
 		self.START_POS = Normal(torch.tensor([0.,0.,2.]), 1.0) # must have sample() method implemented. can generate size (N,3) or (3,)
 		self.START_ORI = torch.tensor([0,0,-np.pi/2,0,0,np.pi/2]) # shape (N,6) or (N,3) or (6,) or (3,).
 		if len(self.START_ORI.shape)==1:
@@ -210,7 +205,10 @@ class MRS(gym.Env):
 
 
 	def close(self):
-		self.sim.stop()
+		try:
+			self.sim.stop()
+		except:
+			pass
 
 
 	def render(self, mode='bullet', close=False):
@@ -234,6 +232,8 @@ class MRS(gym.Env):
 		# actions: N x ACTION_DIM
 		if actions is not None:
 			actions = totensor(actions).detach()
+			if len(actions.shape)==1:
+				actions = actions.reshape(self.N_AGENTS, self.ACTION_DIM)
 			if torch.any(np.isnan(actions)):
 				raise Exception('The given action contains NaN:\n %s' % str(actions))
 			self.last_action = actions

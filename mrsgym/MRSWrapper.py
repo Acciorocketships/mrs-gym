@@ -16,7 +16,14 @@ class MRS_RLlib(MRS):
 
 	def step(self, actions):
 		actions = self.action_fn(actions)
-		return super(MRS_RLlib, self).step(actions)
+		obs, reward, done, info = super(MRS_RLlib, self).step(actions)
+		obs = obs.reshape(-1).numpy()
+		return obs, reward, done, info
+
+	def reset(self, **kwargs):
+		obs = super(MRS_RLlib, self).reset(**kwargs)
+		obs = obs.reshape(-1).numpy()
+		return obs
 
 
 
@@ -46,3 +53,8 @@ class MRS_RLlib_MultiAgent(MRS_RLlib, MultiAgentEnv):
 			idx = self.names_dict[name]
 			actions_array[idx,:] = action
 		return super(MRS_RLlib_MultiAgent, self).step(actions_array)
+
+
+if __name__ == '__main__':
+	env = MRS_RLlib()
+	import pdb; pdb.set_trace()

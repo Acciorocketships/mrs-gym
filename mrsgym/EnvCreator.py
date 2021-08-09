@@ -47,7 +47,7 @@ def load_urdf(path, pos=[0,0,0], ori=[0,0,0], inpackage=True, sim=DefaultSim()):
 	if ori.shape == (3,3):
 		r = R.from_matrix(ori)
 	elif ori.shape == (3,):
-		r = R.from_euler('xyz', ori, degrees=True)
+		r = R.from_euler('XYZ', ori, degrees=True)
 	elif ori.shape == (4,):
 		r = R.from_quat(ori)
 	ori = r.as_quat()
@@ -59,3 +59,5 @@ def load_urdf(path, pos=[0,0,0], ori=[0,0,0], inpackage=True, sim=DefaultSim()):
 	# load
 	model = p.loadURDF(fileName=path, basePosition=pos, baseOrientation=ori, physicsClientId=sim.id)
 	return model
+
+	

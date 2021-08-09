@@ -4,12 +4,11 @@ import gym
 
 def main():
 	N = 3
-	env = gym.make('mrs-v0', state_fn=state_fn, N_AGENTS=N, ACTION_TYPE='set_target_vel', RETURN_EVENTS=True)
+	env = gym.make('mrs-v0', state_fn=state_fn, N_AGENTS=N, ACTION_TYPE='set_target_accel', RETURN_EVENTS=True)
 	actions = torch.zeros(N,3)
 	while True:
 		X, reward, done, info = env.step(actions)
 		actions = key_to_action(info["keyboard_events"]).expand(N,-1)
-		# actions = torch.tensor([1,0,0]).expand(N,-1)
 		env.wait()
 
 def key_to_action(keys):
