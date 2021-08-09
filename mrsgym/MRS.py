@@ -49,7 +49,7 @@ class MRS(gym.Env):
 			self.env = env_generator(envtype=env, N=self.N_AGENTS, sim=self.sim)
 		# Constants that depend on other constants
 		self.observation_space = Box(np.full((self.K_HOPS+1 * self.N_AGENTS * self.STATE_SIZE), -np.inf, dtype=np.float32), np.full((self.K_HOPS+1 * self.N_AGENTS * self.STATE_SIZE), np.inf, dtype=np.float32))
-		self.action_space = Box(np.full((self.N_AGENTS * self.ACTION_DIM), -np.inf, dtype=np.float32), np.full((self.N_AGENTS * self.ACTION_DIM), np.inf, dtype=np.float32))
+		self.action_space = Box(np.array([9.81-1, -1., -1., -1.]), np.array([9.81+1, 1., 1., 1.]))
 		self.START_POS = Normal(torch.tensor([0.,0.,2.]), 1.0) # must have sample() method implemented. can generate size (N,3) or (3,)
 		self.START_ORI = torch.tensor([0,0,-np.pi/2,0,0,np.pi/2]) # shape (N,6) or (N,3) or (6,) or (3,).
 		if len(self.START_ORI.shape)==1:
@@ -281,5 +281,3 @@ class MRS(gym.Env):
 
 	def get_object_dict(self):
 		return self.env.object_dict
-
-		

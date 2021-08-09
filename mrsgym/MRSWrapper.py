@@ -16,7 +16,7 @@ class MRS_RLlib(MRS):
 
 	def step(self, actions):
 		actions = self.action_fn(actions)
-		obs, reward, done, info = super(MRS_RLlib, self).step(actions)
+		obs, reward, done, info = super(MRS_RLlib, self).step(self.action_fn(actions))
 		obs = obs.reshape(-1).numpy()
 		return obs, reward, done, info
 

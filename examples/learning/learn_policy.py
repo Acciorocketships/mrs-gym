@@ -8,6 +8,7 @@ from ray import tune
 import ray
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
+import keyboard
 
 
 project = "quadcontroller"
@@ -27,13 +28,13 @@ def run():
 		"start_fn": start_fn,
 		"state_fn": state_fn,
 		"reward_fn": reward_fn,
-		"STATE_SIZE": 9,
+		"STATE_SIZE": 8,
 		"ACTION_DIM": 4,
 		}
 
 	tune.run(
 		PPOTrainer,
-		checkpoint_freq = 1,
+		checkpoint_freq = 10,
 		stop = {"training_iteration": training_iter},
 		config = {
 			"framework": "torch",
@@ -50,7 +51,12 @@ def run():
 
 
 def state_fn(quad):
-	return torch.cat([quad.get_data("target_vel") - quad.get_vel(), quad.get_ori(), quad.get_angvel()])
+	R = quad.get_ori(mat=True)
+	relvel = quad.get_data("target_vel") - quad.get_vel()
+	relvel_localframe = R.T @ relvel
+	ori_noyaw = quad.get_ori()[1:]
+	angvel = quad.get_angvel()
+	return torch.cat([relvel_localframe, ori_noyaw, angvel])
 
 
 def start_fn(env):
@@ -65,6 +71,7 @@ def reward_fn(**kwargs):
 	angvel = x[6:9]
 	reward = -5 * vel_e.norm() + -1 * angvel.norm()
 	return reward.item()
+
 
 
 class CustomTorchModel(TorchModelV2):
