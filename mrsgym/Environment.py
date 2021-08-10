@@ -90,6 +90,8 @@ class Environment:
 	def set_actions(self, actions, behaviour='set_controls'):
 		for i, agent in enumerate(self.agents):
 			getattr(agent, behaviour)(actions[i,:])
+		for agent in self.agents:
+			agent.dynamics()
 
 
 	def set_state(self, pos, ori, vel, angvel):

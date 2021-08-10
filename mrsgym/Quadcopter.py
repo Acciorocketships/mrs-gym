@@ -16,6 +16,7 @@ class Quadcopter(Object):
 		self.attributes = self.read_attributes()
 		self.attributes.update(self.calculate_parameters())
 		self.controller = QuadControl(self.attributes)
+		self.speeds = np.zeros(4)
 
 	def get_idx(self):
 		return self.env.agent_idxs[self]
@@ -35,9 +36,9 @@ class Quadcopter(Object):
 
 	# Input: [Motor0RPM, Motor1RPM, Motor2RPM, Motor3RPM]
 	def set_speeds(self, speeds=[0,0,0,0]):
-		speeds = np.array(speeds)
-		forces = np.array(speeds**2) * self.attributes["Kf"]
-		torques = np.array(speeds**2) * self.attributes["Km"]
+		self.speeds = np.array(speeds)
+		forces = np.array(self.speeds**2) * self.attributes["Kf"]
+		torques = np.array(self.speeds**2) * self.attributes["Km"]
 		z_torque = (-torques[0] + torques[1] - torques[2] + torques[3])
 		for i in range(4):
 			p.applyExternalForce(self.uid, linkIndex=i, forceObj=[0,0,forces[i]], posObj=[0,0,0], flags=p.LINK_FRAME, physicsClientId=self.sim.id)
@@ -59,13 +60,59 @@ class Quadcopter(Object):
 		self.set_speeds(control)
 
 
-	# def set_target_ori(self, ori=[0,0,0]):
-	# 	speeds = self.controller.attitude_control(target_ori=ori, ori=self.get_ori(), angvel=self.get_angvel())
-	# 	self.set_control(speeds)
-
 	def set_target_ori(self, ori=[0,0,0]):
-		speeds = self.controller.attitude_control(target_ori=ori, ori=self.get_ori(), thrust=40000)
+		speeds = self.controller.attitude_control(target_accel=np.zeros(3), target_ori=ori, ori=self.get_ori(), angvel=self.get_angvel())
 		self.set_speeds(speeds)
+
+
+
+	def dynamics(self):
+		# Ground Effect
+		link_states = np.array(p.getLinkStates(self.uid,
+											   linkIndices=[0, 1, 2, 3, 4],
+											   computeLinkVelocity=1,
+											   computeForwardKinematics=1,
+											   physicsClientId=self.sim.id))
+		prop_heights = np.array([link_states[0, 0][2], link_states[1, 0][2], link_states[2, 0][2], link_states[3, 0][2]])
+		prop_heights = np.clip(prop_heights, self.attributes["GroundEffectHClip"], np.inf)
+		gnd_effects = np.array(self.speeds**2) * self.attributes["Kf"] * self.attributes["GroundEffectCoeff"] * (self.attributes["PropRadius"]/(4 * prop_heights))**2
+		ori = self.get_ori()
+		if np.abs(ori[0] < np.pi/2) and np.abs(ori[1] < np.pi/2):
+			for i in range(4):
+				p.applyExternalForce(self.uid,
+									 i,
+									 forceObj=[0, 0, gnd_effects[i]],
+									 posObj=[0, 0, 0],
+									 flags=p.LINK_FRAME,
+									 physicsClientId=self.sim.id)
+		# Drag
+		rotation = self.get_ori(mat=True)
+		vel = self.get_vel()
+		drag_factors = -1 * self.attributes["DragCoeff"] * np.sum(np.array(2*np.pi*self.speeds/60))
+		drag = np.dot(rotation, drag_factors*np.array(vel))
+		p.applyExternalForce(self.uid,
+							 4,
+							 forceObj=drag,
+							 posObj=[0, 0, 0],
+							 flags=p.LINK_FRAME,
+							 physicsClientId=self.sim.id)
+		# Downwash
+		pos = self.get_pos()
+		for otherquad in self.env.agents:
+			other_pos = otherquad.get_pos()
+			rel = other_pos - pos
+			delta_z = rel[2]
+			delta_xy = np.linalg.norm(rel[:2])
+			if delta_z > 0 and delta_xy < 10:
+				alpha = self.attributes['DwCoeff1'] * (self.attributes['PropRadius']/(4*delta_z))**2
+				beta = self.attributes['DwCoeff2'] * delta_z + self.attributes['DwCoeff3']
+				downwash = [0, 0, -alpha * np.exp(-.5*(delta_xy/beta)**2)]
+				p.applyExternalForce(self.uid,
+                                     4,
+                                     forceObj=downwash,
+                                     posObj=[0, 0, 0],
+                                     flags=p.LINK_FRAME,
+                                     physicsClientId=self.sim.id)
 
 
 

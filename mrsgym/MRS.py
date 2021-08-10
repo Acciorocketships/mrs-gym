@@ -49,8 +49,8 @@ class MRS(gym.Env):
 			self.env = env_generator(envtype=env, N=self.N_AGENTS, sim=self.sim)
 		# Constants that depend on other constants
 		self.observation_space = Box(np.full((self.K_HOPS+1 * self.N_AGENTS * self.STATE_SIZE), -np.inf, dtype=np.float32), np.full((self.K_HOPS+1 * self.N_AGENTS * self.STATE_SIZE), np.inf, dtype=np.float32))
-		self.action_space = Box(np.array([9.81-1, -1., -1., -1.]), np.array([9.81+1, 1., 1., 1.]))
-		self.START_POS = Normal(torch.tensor([0.,0.,2.]), 1.0) # must have sample() method implemented. can generate size (N,3) or (3,)
+		self.action_space = Box(np.tile(np.array([9.81-1, -1., -1., -1.]), self.N_AGENTS), np.tile(np.array([9.81+1, 1., 1., 1.]), self.N_AGENTS))
+		self.START_POS = self.default_spawn_dist() # must have sample() method implemented. can generate size (N,3) or (3,)
 		self.START_ORI = torch.tensor([0,0,-np.pi/2,0,0,np.pi/2]) # shape (N,6) or (N,3) or (6,) or (3,).
 		if len(self.START_ORI.shape)==1:
 			self.START_ORI = self.START_ORI.expand(self.N_AGENTS, -1)
@@ -63,6 +63,19 @@ class MRS(gym.Env):
 		self.last_obs = None
 		self.last_loop_time = time.monotonic()
 		self.is_initialised = False
+		self.reset()
+
+
+	def default_spawn_dist(self):
+		z_low = 1.0
+		z_high = 3.0
+		xy_radius = 1.0
+		z = Uniform(low=z_low*torch.ones(self.N_AGENTS,1), high=z_high*torch.ones(self.N_AGENTS,1)) # uniform between 0 and 1 in the z direction
+		xy_normal = Normal(torch.zeros(self.N_AGENTS,2), xy_radius)
+		sphere_transform = SphereTransform(radius=xy_radius, within=True)
+		xy_circle = TransformedDistribution(xy_normal, [sphere_transform]) # gaussian with sigma=1 bounded by a cirle of radius=1 in the xy direction
+		dist = CombinedDistribution([xy_circle, z], mixer='cat', dim=1)
+		return dist
 
 
 	def set_constants(self, kwargs):
@@ -226,9 +239,6 @@ class MRS(gym.Env):
 
 	def step(self, actions, ACTION_TYPE=None):
 		## Set Action and Step Environment ##
-		# init
-		if not self.is_initialised:
-			self.reset()
 		# actions: N x ACTION_DIM
 		if actions is not None:
 			actions = totensor(actions).detach()

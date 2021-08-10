@@ -12,12 +12,12 @@ class QuadControl:
 		self.attributes = attributes
 		self.sim = sim
 		self.control_params = {
-			"PosCtrl_P": np.array([4., 4., 4.]),
-			"PosCtrl_I": np.array([.1, .1, .1]),
-			"PosCtrl_D": np.array([2., 2., 2.]),
-			"VelCtrl_P": np.array([4., 4., 4.]),
+			"PosCtrl_P": np.array([1.5, 1.5, 1.5]),
+			"PosCtrl_I": np.array([.001, .001, .001]),
+			"PosCtrl_D": np.array([1., 1., 1.]),
+			"VelCtrl_P": np.array([3., 3., 3.]),
 			"VelCtrl_I": np.array([.1, .1, .1]),
-			"VelCtrl_D": np.array([2., 2., 2.]),
+			"VelCtrl_D": np.array([1., 1., 1.]),
 			"AccelCtrl_P": np.array([10., 10., 10.]),
 			"AccelCtrl_I": np.array([.01, .01, .01]),
 			"AccelCtrl_D": np.array([5., 5., 5.]),
@@ -90,10 +90,12 @@ class QuadControl:
 		return self.attitude_control(target_accel=target_accel, target_ori=target_ori, ori=ori, angvel=angvel)
 
 
-	def attitude_control(self, target_accel, target_ori, ori, angvel, target_angvel=[0,0,0]):
+	def attitude_control(self, target_ori, ori, angvel, target_accel=[0.,0.,9.81], target_angvel=[0,0,0]):
 		ori = np.array(ori)
+		angvel = np.array(angvel)
 		target_ori = np.array(target_ori)
 		target_angvel = np.array(target_angvel)
+		target_accel = np.array(target_accel)
 		rotation = R.from_euler('xyz', ori, degrees=False).as_matrix()
 		target_rotation = R.from_euler('xyz', target_ori, degrees=False).as_matrix()
 		rot_matrix_e = np.dot((target_rotation.transpose()), rotation) - np.dot(rotation.transpose(), target_rotation)
@@ -111,7 +113,13 @@ class QuadControl:
 						 + np.multiply(self.control_params["OriCtrl_I"], self.integral_ori_e) \
 						 + np.multiply(self.control_params["OriCtrl_D"], angvel_e)
 		target_torques = np.clip(target_torques, -3200, 3200)
-		scalar_thrust = max(0., np.dot(target_accel*self.attributes["Mass"], rotation[:,2]))
+		# scalar_thrust = max(0., np.dot(target_accel*self.attributes["Mass"], rotation[:,2]))
+		if np.linalg.norm(target_accel) != 0:
+			cosang = np.dot(target_accel/np.linalg.norm(target_accel), rotation[:,2])
+			ratio = 1 / max(cosang, 0.2)
+			scalar_thrust = ratio * np.linalg.norm(target_accel) * self.attributes["Mass"]
+		else:
+			scalar_thrust = 0.
 		thrust = (math.sqrt(scalar_thrust / (4*self.attributes["Kf"])) - self.control_params["PWMtoRPM_B"]) / self.control_params["PWMtoRPM_A"]
 		pwm = thrust + np.dot(self.control_params["MixerMatrix"], target_torques)
 		pwm = np.clip(pwm, self.control_params["MinPWM"], self.control_params["MaxPWM"])
