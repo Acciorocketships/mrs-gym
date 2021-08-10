@@ -9,7 +9,6 @@ def main():
 	while True:
 		X, reward, done, info = env.step(actions)
 		actions = key_to_action(info["keyboard_events"]).expand(N,-1)
-		# actions = torch.tensor([1,0,0]).expand(N,-1)
 		env.wait()
 
 def key_to_action(keys):

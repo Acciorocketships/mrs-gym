@@ -1,5 +1,5 @@
 from mrsgym.BulletSim import *
-from mrsgym.QuadControl import *
+from mrsgym.QuadControl import QuadControl
 from mrsgym.Object import *
 import pybullet as p
 import numpy as np
@@ -46,22 +46,27 @@ class Quadcopter(Object):
 
 	def set_target_accel(self, accel=[0,0,0]):
 		control = self.controller.accel_control(ori=self.get_ori(), angvel=self.get_angvel(), target_accel=accel)
-		self.set_control(control)
-
-
-	def set_target_pos(self, pos=[0,0,0]):
-		control = self.controller.pos_control(pos=self.get_pos(), vel=self.get_vel(), ori=self.get_ori(), angvel=self.get_angvel(), target_pos=pos)
-		self.set_control(control)
+		self.set_speeds(control)
 
 
 	def set_target_vel(self, vel=[0,0,0]):
 		control = self.controller.vel_control(vel=self.get_vel(), ori=self.get_ori(), angvel=self.get_angvel(), target_vel=vel)
-		self.set_control(control)
+		self.set_speeds(control)
 
+
+	def set_target_pos(self, pos=[0,0,0]):
+		control = self.controller.pos_control(pos=self.get_pos(), vel=self.get_vel(), ori=self.get_ori(), angvel=self.get_angvel(), target_pos=pos)
+		self.set_speeds(control)
+
+
+	# def set_target_ori(self, ori=[0,0,0]):
+	# 	speeds = self.controller.attitude_control(target_ori=ori, ori=self.get_ori(), angvel=self.get_angvel())
+	# 	self.set_control(speeds)
 
 	def set_target_ori(self, ori=[0,0,0]):
-		speeds = self.controller.attitude_control(target_ori=ori, ori=self.get_ori(), angvel=self.get_angvel())
-		self.set_control(speeds)
+		speeds = self.controller.attitude_control(target_ori=ori, ori=self.get_ori(), thrust=40000)
+		self.set_speeds(speeds)
+
 
 
 	def read_attributes(self):
