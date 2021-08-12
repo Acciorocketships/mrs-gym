@@ -61,7 +61,7 @@ class Quadcopter(Object):
 
 
 	def set_target_ori(self, ori=[0,0,0]):
-		speeds = self.controller.attitude_control(target_accel=np.zeros(3), target_ori=ori, ori=self.get_ori(), angvel=self.get_angvel())
+		speeds = self.controller.attitude_control(target_accel=np.array([0.,0.,9.81]), target_ori=ori, ori=self.get_ori(), angvel=self.get_angvel())
 		self.set_speeds(speeds)
 
 
