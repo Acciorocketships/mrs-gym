@@ -2,7 +2,8 @@
 
 ## Installation
 ```bash
-pip3 install -e .
+cd mrs-gym
+pip install -e .
 ```
 
 ## Demo
